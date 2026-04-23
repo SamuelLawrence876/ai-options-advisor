@@ -12,6 +12,9 @@ export interface DeliverReportProps {
   stage: string;
   bucket: IBucket;
   reportsTable: ITable;
+  ivHistoryTable: ITable;
+  senderEmail: string;
+  recipientEmail: string;
 }
 
 export class DeliverReport extends Construct {
@@ -20,7 +23,7 @@ export class DeliverReport extends Construct {
   constructor(scope: Construct, id: string, props: DeliverReportProps) {
     super(scope, id);
 
-    const { stage, bucket, reportsTable } = props;
+    const { stage, bucket, reportsTable, ivHistoryTable, senderEmail, recipientEmail } = props;
 
     this.fn = new NodejsFunction(this, 'Function', {
       functionName: addStagePrefix(stage, 'deliver-report'),
@@ -37,12 +40,16 @@ export class DeliverReport extends Construct {
         STAGE: stage,
         BUCKET_NAME: bucket.bucketName,
         REPORTS_TABLE: reportsTable.tableName,
+        IV_HISTORY_TABLE: ivHistoryTable.tableName,
+        SENDER_EMAIL: senderEmail,
+        RECIPIENT_EMAIL: recipientEmail,
       },
       bundling: { minify: true, sourceMap: true },
     });
 
     bucket.grantReadWrite(this.fn);
     reportsTable.grantReadWriteData(this.fn);
+    ivHistoryTable.grantReadWriteData(this.fn);
 
     this.fn.addToRolePolicy(
       new PolicyStatement({

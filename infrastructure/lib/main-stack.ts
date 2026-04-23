@@ -1,5 +1,6 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import { config } from './config';
 import { Tables } from './constructs/data/tables';
 import { Storage } from './constructs/data/storage';
 import { Secrets } from './constructs/secrets/secrets';
@@ -84,6 +85,9 @@ export class OptionsAnalysisStack extends Stack {
       stage,
       bucket: storage.bucket,
       reportsTable: tables.reportsTable,
+      ivHistoryTable: tables.ivHistoryTable,
+      senderEmail: config.email.senderEmail,
+      recipientEmail: config.email.recipientEmail,
     });
 
     const stateMachine = new PipelineStateMachine(this, 'StateMachine', {

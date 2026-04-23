@@ -1,10 +1,151 @@
-# Options Analysis System — Build Plan
+# Theta — Options Analysis System — Build Plan
 
 ## What We're Building
 
 A scheduled AWS pipeline that collects options market data, event data, technical context, and macro signals across a personal watchlist — enriches it into clean trade signals — feeds it to Claude via Bedrock — and delivers a structured weekly report of ranked options selling opportunities with full reasoning.
 
 **Not in scope (yet):** autonomous execution, broker API integration, live position tracking.
+
+---
+
+## Technical Architecture
+
+```mermaid
+flowchart TD
+    EB[EventBridge\nMonday 06:00 UTC] -->|triggers| SF
+
+    subgraph SF[Step Functions — ThetaStack]
+        direction TB
+        S1[Fetch Market Context\nonce per run] --> S2
+        S2[Load Active Watchlist\nfrom DynamoDB] --> S3
+
+        subgraph S3[Map — Per Ticker in Parallel]
+            direction LR
+            L1[fetch-options-data]
+            L2[fetch-fundamentals]
+            L3[fetch-technicals]
+        end
+
+        S3 --> S4[enrich-and-score]
+        S4 --> S5[run-llm-analysis\nStage 1 — per ticker]
+        S5 --> S6[Portfolio Synthesis\nStage 2 — full book]
+        S6 --> S7[generate-report]
+        S7 --> S8[deliver-report]
+        S8 --> S9[Update IV History]
+    end
+
+    subgraph SOURCES[External Data Sources]
+        FA[FlashAlpha\nIV rank · Greeks · vol surface]
+        AV[Alpha Vantage\nearnings · price · fundamentals]
+        QD[Quandl FINRA\nshort interest]
+    end
+
+    subgraph STORE[AWS Storage]
+        S3B[S3\nraw · enriched · prompts · reports]
+        DB[(DynamoDB\nwatchlist · IV history · human context)]
+    end
+
+    subgraph AI[AI Layer]
+        BR[Amazon Bedrock\nClaude]
+        SM[Secrets Manager\nAPI keys]
+    end
+
+    subgraph DELIVER[Delivery]
+        SES[SES — HTML email]
+        SNS[SNS → Slack summary]
+    end
+
+    SOURCES --> S3
+    S3 -->|raw JSON| S3B
+    S4 -->|enriched JSON| S3B
+    S3B -->|prompts| S5
+    DB -->|watchlist · human context| SF
+    SF -->|IV snapshots| DB
+    S5 & S6 --> BR
+    L1 & L2 & L3 --> SM
+    S7 -->|full report HTML| S3B
+    S8 --> SES
+    S8 --> SNS
+
+    HI[You — Human Context\ninjected before run] -->|DynamoDB write| DB
+```
+
+---
+
+## Financial Analysis Flow
+
+How raw market data becomes a ranked trade recommendation. This is the logic the system executes for every ticker, every cycle.
+
+```mermaid
+flowchart TD
+    subgraph IN[Inputs — What We Collect]
+        direction LR
+        I1[IV Rank\nIV Percentile\nVRP]
+        I2[Earnings Date\nEx-Div Date\nShort Interest\nAnalyst Targets]
+        I3[Price Trend\nATR · 52w High\nSupport Levels]
+        I4[VIX Regime\nMarket Trend\nSector IV]
+        I5[Your Cost Basis\nShares Held\nTarget Yield]
+        I6[Human Context\nyour live insights]
+    end
+
+    subgraph EN[Enrichment — Mechanical Pre-Computation]
+        direction TB
+        E1{IV Rank >= 50?} -->|No| SKIP1[SKIP\nPremium too cheap]
+        E1 -->|Yes| E2
+        E2{Earnings\nin window?} -->|Yes| SKIP2[SKIP\nEarnings binary risk]
+        E2 -->|No| E3
+        E3[Classify Trend\nBULLISH · NEUTRAL · BEARISH] --> E4
+        E4[Compute VRP\nIV minus HV] --> E5
+        E5[Select candidate strike\nby delta target] --> E6
+        E6[Compute risk metrics\nMax Loss · BPR · ROBP]
+    end
+
+    subgraph ST[Strategy Pre-Selection]
+        direction TB
+        ST1[BULLISH trend\nHigh IV · good support\n→ PUT CREDIT SPREAD or CSP]
+        ST2[NEUTRAL trend\nHigh IV · own shares\n→ COVERED CALL]
+        ST3[NEUTRAL trend\nVery high IV · low ATR\nno catalyst\n→ IRON CONDOR]
+    end
+
+    subgraph LLM[Claude via Bedrock]
+        direction TB
+        LLM1[Reads full ticker dossier\nincl. human context] --> LLM2
+        LLM2[Reasons across all signals\nflags interactions a screener misses] --> LLM3
+        LLM3[Confirms or overrides\npre-screen strategy] --> LLM4
+        LLM4[Returns structured output\nrecommendation · risks · reasoning\nROBP · max loss · BPR]
+    end
+
+    subgraph RANK[Portfolio Ranking]
+        direction TB
+        R1[All ticker results combined] --> R2
+        R2[Rank by ROBP annualised\nnot raw yield] --> R3
+        R3[Check sector concentration\nand correlated risk] --> R4
+        R4[Apply macro regime context\nVIX EXTREME = size down]
+    end
+
+    subgraph OUT[Output — Weekly Report]
+        direction LR
+        O1[Top 3-5 trades\nwith full rationale]
+        O2[Full watchlist verdict\ntrade · skip · watch]
+        O3[Flags and warnings\nearnings · concentration · macro]
+    end
+
+    IN --> EN
+    E6 --> ST
+    ST --> LLM
+    LLM --> RANK
+    RANK --> OUT
+```
+
+### Key Decision Points
+
+**Why IV rank is the first gate.** If IV is below 50, the options market is not offering sufficient premium relative to the stock's own history. Selling in a low IV environment means capping upside for little compensation. The system stops here rather than waste analysis on a poor setup.
+
+**Why earnings is an immediate disqualifier.** When earnings falls inside the expiry window, the elevated IV is almost entirely explained by binary event premium — not genuine vol richness. Selling into that means taking on earnings risk you didn't price correctly. No exceptions.
+
+**Why ROBP beats raw yield for ranking.** A covered call on a $180 stock collecting $3.80 ties up $18,000 of buying power. A put spread collecting $1.20 on a $5-wide spread ties up $380. The spread's annualised ROBP is multiples higher. Without this adjustment the report systematically biases toward large-cap covered calls and undersells the capital efficiency of defined-risk structures.
+
+**Where the LLM adds what a screener cannot.** The enrichment layer handles mechanical gates. Claude handles synthesis — connecting signals that interact in non-obvious ways. High IV rank entirely explained by upcoming earnings. A bullish analyst upgrade with a price target 40% above current arguing against covered calls even in a neutral trend. Short interest at 18% flagging squeeze risk the delta alone doesn't capture. These are the calls that separate a smart system from a simple screener.
 
 ---
 
@@ -25,10 +166,9 @@ A scheduled AWS pipeline that collects options market data, event data, technica
 
 ### 1.1 — CDK Project Setup
 
-Set up the monorepo package following existing patterns. Single CDK stack to start: `OptionsAnalysisStack`.
+Set up the monorepo package following existing patterns. Single CDK stack to start: `ThetaStack`.
 
 Constructs to scaffold:
-
 - `StorageConstruct` — S3 bucket + DynamoDB tables
 - `SchedulerConstruct` — EventBridge cron rule (weekly, Monday 06:00 UTC — before US pre-market)
 - Placeholder Step Functions state machine
@@ -92,7 +232,7 @@ source            string      "manual" always for now
 ### 1.3 — S3 Bucket Structure
 
 ```
-options-analysis-{account}-{region}/
+theta-{account}-{region}/
   raw-data/
     {YYYY-MM-DD}/
       {TICKER}/
@@ -120,7 +260,6 @@ Raw data is always preserved. If a run fails midway, you can reprocess from S3 w
 Single Lambda. Input: ticker symbol. Output: raw JSON to S3.
 
 Data to fetch per ticker:
-
 - IV rank + IV percentile
 - Current IV (30d)
 - Historical vol (30d)
@@ -143,10 +282,7 @@ API budget note: FlashAlpha free tier is 5 calls/day. For a watchlist larger tha
 
 Fetches event and sentiment data. Most critical inputs.
 
-Data to collect:
-
 **Earnings**
-
 - Next earnings date
 - Days until earnings (DTE to earnings)
 - Historical earnings move (average % move over last 4 prints) — useful for contextualising IV
@@ -154,7 +290,6 @@ Data to collect:
 Source: Alpha Vantage earnings calendar endpoint. yfinance as fallback.
 
 **Dividends**
-
 - Next ex-dividend date
 - Days until ex-div
 - Annual dividend yield
@@ -162,14 +297,12 @@ Source: Alpha Vantage earnings calendar endpoint. yfinance as fallback.
 Source: Alpha Vantage or yfinance.
 
 **Short Interest**
-
 - Short interest as % of float
 - Days to cover
 
 Source: Quandl FINRA short interest (free, 2-day lag). Acceptable for weekly cadence.
 
 **Analyst Ratings**
-
 - Consensus rating
 - Mean price target
 - Number of recent upgrades/downgrades (last 30 days)
@@ -178,22 +311,19 @@ Source: Quandl FINRA short interest (free, 2-day lag). Acceptable for weekly cad
 Source: Alpha Vantage analyst ratings or FMP (Financial Modelling Prep — free tier available).
 
 **Unusual Options Activity Flag**
-
 - Boolean: has there been unusual options volume in the last 5 days?
 - Direction: call-biased or put-biased?
 
-Source: Unusual Whales API (paid) or manual flag via human context table for now. This is a nice-to-have for v1.
+Source: Unusual Whales API (paid) or manual flag via human context table for now. Nice-to-have for v1.
 
 ### 2.2 — Technicals Lambda (`fetch-technicals`)
 
 Fetches price history and computes technical signals. This Lambda does more computation than the others.
 
 Data to fetch:
-
 - Daily OHLCV for past 252 trading days (1 year)
 
 Data to compute:
-
 - Current price
 - 52-week high and low
 - Distance from 52-week high (%)
@@ -201,7 +331,6 @@ Data to compute:
 - Trend classification: BULLISH / NEUTRAL / BEARISH
 
 Trend classification logic:
-
 ```
 Price > 50d MA and 20d MA > 50d MA → BULLISH
 Price < 50d MA and 20d MA < 50d MA → BEARISH
@@ -218,7 +347,6 @@ Source: Alpha Vantage daily adjusted (free tier: 25 calls/day, 500/month — suf
 Runs once per cycle, not per ticker. Fetches macro and regime data.
 
 Data to collect:
-
 - VIX current level
 - VIX 20-day average (is VIX elevated vs its recent baseline?)
 - VIX regime classification: LOW (<15) / NORMAL (15–25) / ELEVATED (25–35) / EXTREME (>35)
@@ -227,7 +355,6 @@ Data to collect:
 - Market trend classification: BULL / NEUTRAL / BEAR
 
 Sector ETF IV (per ticker's sector):
-
 - XLK (tech), XLF (financials), XLE (energy), XLV (healthcare), XLY (consumer disc), XLP (consumer staples), XLI (industrials), XLB (materials), XLU (utilities), XLRE (real estate)
 - Fetch current IV for the relevant sector ETF for each ticker in your watchlist
 
@@ -244,10 +371,7 @@ Source: Alpha Vantage for price data. FlashAlpha for sector ETF IV.
 Input: all raw JSON files from S3 for a given ticker + date.
 Output: enriched signal object written to `enriched/{date}/{ticker}.json`.
 
-Computations:
-
 **Vol signals**
-
 ```
 vrp = current_iv - hv_30d
 iv_rank_signal = iv_rank >= 50 ? "SELL_ENVIRONMENT" : "SKIP"
@@ -255,7 +379,6 @@ iv_vs_sector = current_iv vs sector_etf_iv (above/below/inline)
 ```
 
 **Event flags**
-
 ```
 earnings_in_window = earnings_dte <= target_dte
 earnings_proximity = earnings_dte < 14 ? "DANGER" : earnings_dte < 21 ? "CAUTION" : "CLEAR"
@@ -263,7 +386,6 @@ exdiv_in_window = exdiv_dte <= target_dte
 ```
 
 **Technical signals**
-
 ```
 near_52w_high = distance_from_high < 5% ? true : false
 atr_pct = atr / price * 100
@@ -271,13 +393,11 @@ premium_covers_atr = selected_premium > atr ? true : false
 ```
 
 **Liquidity check**
-
 ```
 liquidity_ok = open_interest > 500 AND spread_pct < 10%
 ```
 
 **First-pass strategy suggestion**
-
 ```
 if trend == BULLISH and iv_rank >= 50 and earnings_clear → CSP or PUT_CREDIT_SPREAD
 if trend == NEUTRAL and iv_rank >= 50 and earnings_clear → COVERED_CALL
@@ -286,40 +406,36 @@ if iv_rank < 50 → SKIP
 if earnings_in_window → SKIP (override everything)
 ```
 
-This suggestion is a starting point. The LLM can and will override it with reasoning.
-
 **Candidate strike selection**
 For each viable strategy, compute the specific strike(s) the LLM should evaluate:
-
 - Covered call: closest strike above current price with delta 0.25–0.35
 - Put credit spread: short strike at delta 0.25–0.30, long strike 5–10 points below
 - CSP: strike at delta 0.25–0.30
 
-Also compute annualised yield for each candidate:
-
+Annualised yield per candidate:
 ```
 annualised_yield = (premium / (strike * 100)) * (365 / dte) * 100
 ```
 
 **Risk-adjusted metrics**
-These are computed per candidate trade and are the primary ranking signal. Raw yield is presented for context but never used for ranking.
+These are the primary ranking signal. Raw yield is presented for context but never used for ranking.
 
 ```
 // Max loss — worst case capital at risk
-max_loss (covered call)     = (cost_basis - premium_collected) * 100
-                              // shares can go to zero; premium is partial offset
+max_loss (covered call)      = (cost_basis - premium_collected) * 100
+                               // shares can go to zero; premium is partial offset
 max_loss (put credit spread) = (spread_width - premium_collected) * 100
-                              // e.g. $5 spread, $1.20 credit → max loss = $380
-max_loss (CSP)              = (strike - premium_collected) * 100
-                              // obligated to buy shares at strike
+                               // e.g. $5 spread, $1.20 credit → max loss = $380
+max_loss (CSP)               = (strike - premium_collected) * 100
+                               // obligated to buy shares at strike
 
 // Buying power required — capital the broker holds against the position
-bpr (covered call)          = share_price * 100
-                              // full share cost unless on margin
-bpr (put credit spread)     = max_loss
-                              // defined risk = BPR for spreads
-bpr (CSP)                   = max_loss
-                              // cash held to cover assignment
+bpr (covered call)           = share_price * 100
+                               // full share cost unless on margin
+bpr (put credit spread)      = max_loss
+                               // defined risk = BPR for spreads
+bpr (CSP)                    = max_loss
+                               // cash held to cover assignment
 
 // Return on buying power — the apples-to-apples comparison metric
 robp = premium_collected / bpr
@@ -328,7 +444,7 @@ robp = premium_collected / bpr
 robp_annualised = robp * (365 / dte) * 100
 ```
 
-Why this matters in practice: a covered call collecting $380 on $18,200 of buying power (2.1% ROBP) ranks well below a put spread collecting $120 on $380 of buying power (31.6% ROBP), even though the covered call has a higher raw dollar premium and may show a higher annualised yield on a notional basis. Without ROBP the ranking is actively misleading.
+Why this matters: a covered call collecting $380 on $18,200 BPR (2.1% ROBP) ranks well below a put spread collecting $120 on $380 BPR (31.6% ROBP). Without ROBP the ranking is actively misleading.
 
 ---
 
@@ -338,15 +454,13 @@ Why this matters in practice: a covered call collecting $380 on $18,200 of buyin
 
 ### 4.1 — Prompt Templates (stored in S3)
 
-**System prompt** — sets the persona and analytical framework. Defines what a good covered call opportunity looks like, what the LLM should always check, and how to format output. Stored in S3 so it can be updated without a deploy.
+**System prompt** — sets the persona and analytical framework. Defines what a good premium-selling opportunity looks like, what the LLM should always check, and how to format output. Stored in S3 so it can be updated without a deploy.
 
-**Ticker analysis template** — structured dossier format (see below). One per ticker.
+**Ticker analysis template** — structured dossier format per ticker.
 
 **Portfolio synthesis template** — fed all per-ticker outputs plus macro context. Produces the final ranked report.
 
 ### 4.2 — Ticker Dossier Format
-
-The enriched data is formatted into this structure before being sent to the LLM:
 
 ```
 ═══════════════════════════════════════
@@ -360,7 +474,7 @@ IV Rank:        {iv_rank} / 100  [{iv_rank_signal}]
 IV Percentile:  {iv_percentile}%
 Current IV:     {current_iv}%
 30d HV:         {hv_30d}%
-VRP:            {vrp > 0 ? "+" : ""}{vrp}%  [{vrp > 0 ? "POSITIVE ✓" : "NEGATIVE ✗"}]
+VRP:            {vrp}%  [POSITIVE ✓ / NEGATIVE ✗]
 Sector ETF IV:  {sector_etf_iv}%  ({iv_vs_sector})
 
 TREND & TECHNICALS
@@ -424,7 +538,7 @@ One Bedrock call per ticker. Ask Claude to return structured JSON:
   "symbol": "AAPL",
   "recommendation": "COVERED_CALL | PUT_CREDIT_SPREAD | CSP | IRON_CONDOR | SKIP | WATCH",
   "confidence": "HIGH | MEDIUM | LOW",
-  "adjusted_strike": 197.5,
+  "adjusted_strike": 197.50,
   "adjusted_expiry": "2026-05-16",
   "reasoning": "2-3 sentence plain English explanation",
   "risks": ["risk 1", "risk 2", "risk 3"],
@@ -436,12 +550,9 @@ One Bedrock call per ticker. Ask Claude to return structured JSON:
 }
 ```
 
-Structured output means the synthesis stage and report formatter can process results reliably.
-
 **Stage 2 — Portfolio synthesis call**
 
 One Bedrock call with all per-ticker results + macro context. Ask Claude to:
-
 - Rank the top 3–5 opportunities by ROBP (annualised) — not raw yield
 - Note where ROBP ranking differs materially from yield ranking, and why that matters
 - Flag any sector concentration (>2 positions in the same sector)
@@ -449,17 +560,13 @@ One Bedrock call with all per-ticker results + macro context. Ask Claude to:
 - Note the overall market regime and whether this is a good week for premium selling broadly
 - Produce an executive summary paragraph
 
-Output: structured JSON consumed by the report formatter.
-
 ### 4.4 — Human Context Injection
 
 Before Stage 1 runs, the Lambda checks the Human Context DynamoDB table for any entries where:
-
-- PK matches the ticker being analysed, OR
-- PK is "GLOBAL"
+- PK matches the ticker being analysed, OR PK is "GLOBAL"
 - AND the entry hasn't expired
 
-Any matching entries are appended to the ticker dossier in the HUMAN CONTEXT section. The system prompt instructs Claude to treat human context as high-weight, time-sensitive signal that may not yet be reflected in market data.
+Matching entries are appended to the ticker dossier in the HUMAN CONTEXT section. The system prompt instructs Claude to treat human context as high-weight, time-sensitive signal that may not yet be reflected in market data.
 
 ---
 
@@ -469,19 +576,15 @@ Any matching entries are appended to the ticker dossier in the HUMAN CONTEXT sec
 
 ### 5.1 — Report Lambda (`generate-report`)
 
-Takes the portfolio synthesis JSON and renders it as a formatted HTML email.
-
 Report structure:
 
 **Header**
-
 - Report date
 - Market regime banner (colour coded — green/amber/red based on VIX regime + market trend)
 - One-line executive summary
 
 **Top Opportunities This Week**
 For each top pick (ranked by ROBP):
-
 - Ticker + company name
 - Recommended trade structure in plain English ("Sell the MSFT $415/$410 put spread, 28 DTE, collect $1.20")
 - Max loss + buying power required
@@ -494,14 +597,13 @@ For each top pick (ranked by ROBP):
 Table format — every ticker with: recommendation, confidence, ann. yield, ROBP (ann.), max loss, buying power, one-line rationale, key flag if any.
 
 **Flags & Warnings**
-
 - Upcoming earnings on any watchlist names (next 14 days)
 - Any SKIP recommendations with explanation of what needs to change
 - Sector concentration warnings
 - Macro notes
 
 **Data Freshness Footer**
-Timestamps of each data source fetch. Lets you see immediately if any source failed or returned stale data.
+Timestamps of each data source fetch. If any source failed or returned stale data it shows here immediately.
 
 ### 5.2 — Delivery Lambda (`deliver-report`)
 
@@ -575,15 +677,13 @@ Also wire up a manual trigger — an SNS topic or Lambda URL — so you can kick
 ## Build Order
 
 ### Week 1 — Storage & Config
-
-- CDK stack scaffold
+- CDK stack scaffold (`ThetaStack`)
 - DynamoDB tables + S3 bucket
 - Watchlist seeded with 5–10 tickers
 - FlashAlpha account + API key in Secrets Manager
 - Alpha Vantage account + API key in Secrets Manager
 
 ### Week 2 — Data Collection
-
 - `fetch-options-data` Lambda working, storing to S3
 - `fetch-fundamentals` Lambda working, storing to S3
 - `fetch-technicals` Lambda working, storing to S3
@@ -591,14 +691,12 @@ Also wire up a manual trigger — an SNS topic or Lambda URL — so you can kick
 - All four testable independently via manual invoke
 
 ### Week 3 — Enrichment + LLM
-
 - `enrich-and-score` Lambda working end to end for a single ticker
 - System prompt and ticker template drafted in S3
 - `run-llm-analysis` Stage 1 working for a single ticker
-- Validate output JSON structure
+- Validate output JSON structure including ROBP fields
 
 ### Week 4 — Orchestration & Report
-
 - Stage 2 portfolio synthesis working
 - `generate-report` Lambda producing clean HTML
 - SES delivery working
@@ -606,7 +704,6 @@ Also wire up a manual trigger — an SNS topic or Lambda URL — so you can kick
 - EventBridge schedule active
 
 ### Week 5 — Polish
-
 - Human context injection working (DynamoDB → dossier)
 - Error handling and partial failure logic
 - IV history table being populated each run
@@ -617,13 +714,13 @@ Also wire up a manual trigger — an SNS topic or Lambda URL — so you can kick
 
 ## API Accounts Needed
 
-| Provider      | Purpose                                        | Cost                                                |
-| ------------- | ---------------------------------------------- | --------------------------------------------------- |
-| FlashAlpha    | IV rank, Greeks, vol surface, key levels       | Free (5/day) → Growth tier if >5 tickers            |
+| Provider | Purpose | Cost |
+|---|---|---|
+| FlashAlpha | IV rank, Greeks, vol surface, key levels | Free (5/day) → Growth tier if >5 tickers |
 | Alpha Vantage | Price history, fundamentals, earnings calendar | Free tier (25 req/day) — sufficient for ~15 tickers |
-| ThetaData     | Fallback / alternative options data            | $25/mo if needed                                    |
-| AWS SES       | Email delivery                                 | Near-free at this volume                            |
-| AWS Bedrock   | Claude via API                                 | Pay per token — negligible at weekly cadence        |
+| ThetaData | Fallback / alternative options data | $25/mo if needed |
+| AWS SES | Email delivery | Near-free at this volume |
+| AWS Bedrock | Claude via API | Pay per token — negligible at weekly cadence |
 
 ---
 
