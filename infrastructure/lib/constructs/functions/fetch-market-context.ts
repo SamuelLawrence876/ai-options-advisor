@@ -30,7 +30,7 @@ export class FetchMarketContext extends Construct {
         'Fetches macro regime data once per pipeline run: VIX level and classification, SPY/QQQ trend, and sector ETF IV for each ticker in the watchlist',
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
-      entry: path.join(__dirname, '../../../../../src/functions/fetchMarketContext/index.ts'),
+      entry: path.join(__dirname, '../../../../src/functions/fetchMarketContext/index.ts'),
       handler: 'handler',
       timeout: Duration.minutes(1),
       memorySize: 256,

@@ -116,7 +116,7 @@ Add tickers to the `production-watchlist` DynamoDB table:
 {
   "symbol": "AAPL",
   "strategy_pref": "COVERED_CALL",
-  "cost_basis": 165.00,
+  "cost_basis": 165.0,
   "target_yield_pct": 1.5,
   "max_dte": 45,
   "min_dte": 21,
@@ -129,10 +129,10 @@ Add tickers to the `production-watchlist` DynamoDB table:
 
 ## CI/CD
 
-| Workflow | Trigger | What happens |
-|---|---|---|
-| `ci.yml` | Every push and PR | Lint, type-check, unit tests |
-| `deploy.yml` | Merge to `main` | Deploy dev, then production |
+| Workflow     | Trigger           | What happens                 |
+| ------------ | ----------------- | ---------------------------- |
+| `ci.yml`     | Every push and PR | Lint, type-check, unit tests |
+| `deploy.yml` | Merge to `main`   | Deploy dev, then production  |
 
 Workflows use AWS OIDC — no long-lived access keys stored in GitHub. Create two GitHub Environments (`dev`, `production`) each with an `AWS_DEPLOY_ROLE_ARN` secret.
 
@@ -140,12 +140,12 @@ Workflows use AWS OIDC — no long-lived access keys stored in GitHub. Create tw
 
 ## API accounts needed
 
-| Provider | Used for | Cost |
-|---|---|---|
-| FlashAlpha | Options data — IV rank, Greeks, vol surface, key levels | Free (5 req/day) → Growth tier for >5 tickers |
-| Alpha Vantage | Price history, fundamentals, earnings calendar | Free (25 req/day) — enough for ~15 tickers |
-| AWS Bedrock | Claude inference | Pay-per-token — negligible at weekly cadence |
-| AWS SES | Email delivery | Near-free at this volume |
+| Provider      | Used for                                                | Cost                                          |
+| ------------- | ------------------------------------------------------- | --------------------------------------------- |
+| FlashAlpha    | Options data — IV rank, Greeks, vol surface, key levels | Free (5 req/day) → Growth tier for >5 tickers |
+| Alpha Vantage | Price history, fundamentals, earnings calendar          | Free (25 req/day) — enough for ~15 tickers    |
+| AWS Bedrock   | Claude inference                                        | Pay-per-token — negligible at weekly cadence  |
+| AWS SES       | Email delivery                                          | Near-free at this volume                      |
 
 ---
 

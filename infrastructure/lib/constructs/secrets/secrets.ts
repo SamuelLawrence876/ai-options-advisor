@@ -8,6 +8,7 @@ export interface SecretsProps {
 
 export class Secrets extends Construct {
   public readonly flashAlphaApiKey: Secret;
+
   public readonly alphaVantageApiKey: Secret;
 
   constructor(scope: Construct, id: string, props: SecretsProps) {

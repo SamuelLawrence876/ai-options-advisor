@@ -29,7 +29,7 @@ export class FetchTechnicals extends Construct {
         'Fetches 252-day price history per ticker from Alpha Vantage and computes technical signals: trend classification, 20/50d MAs, ATR, and 52-week range',
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
-      entry: path.join(__dirname, '../../../../../src/functions/fetchTechnicals/index.ts'),
+      entry: path.join(__dirname, '../../../../src/functions/fetchTechnicals/index.ts'),
       handler: 'handler',
       timeout: Duration.minutes(1),
       memorySize: 256,

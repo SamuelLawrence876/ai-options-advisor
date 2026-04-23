@@ -28,7 +28,7 @@ export class DeliverReport extends Construct {
         'Stores the HTML report to S3, generates a 7-day pre-signed URL, writes report metadata to DynamoDB, and delivers the report inline via SES email',
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
-      entry: path.join(__dirname, '../../../../../src/functions/deliverReport/index.ts'),
+      entry: path.join(__dirname, '../../../../src/functions/deliverReport/index.ts'),
       handler: 'handler',
       timeout: Duration.seconds(30),
       memorySize: 256,

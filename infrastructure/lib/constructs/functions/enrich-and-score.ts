@@ -28,7 +28,7 @@ export class EnrichAndScore extends Construct {
         'Combines raw S3 data per ticker into a structured LLM-ready signal object: vol signals, event flags, candidate strikes, and ROBP metrics',
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
-      entry: path.join(__dirname, '../../../../../src/functions/enrichAndScore/index.ts'),
+      entry: path.join(__dirname, '../../../../src/functions/enrichAndScore/index.ts'),
       handler: 'handler',
       timeout: Duration.seconds(30),
       memorySize: 512,

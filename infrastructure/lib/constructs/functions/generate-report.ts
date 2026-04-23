@@ -25,7 +25,7 @@ export class GenerateReport extends Construct {
         'Renders the portfolio synthesis JSON into a formatted HTML report with a market regime banner, top opportunities ranked by ROBP, and full watchlist review',
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
-      entry: path.join(__dirname, '../../../../../src/functions/generateReport/index.ts'),
+      entry: path.join(__dirname, '../../../../src/functions/generateReport/index.ts'),
       handler: 'handler',
       timeout: Duration.seconds(30),
       memorySize: 256,

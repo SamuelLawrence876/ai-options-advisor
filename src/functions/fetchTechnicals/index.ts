@@ -1,5 +1,5 @@
 import { info } from '../../utils/logger';
 
-export const handler = async (event: unknown): Promise<void> => {
+export const handler = (event: unknown): void => {
   info('fetch-technicals invoked', { event });
 };

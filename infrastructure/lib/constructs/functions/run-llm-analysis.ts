@@ -29,7 +29,7 @@ export class RunLlmAnalysis extends Construct {
         'Invokes Claude via Bedrock for per-ticker analysis (Stage 1) and portfolio-level synthesis ranked by ROBP (Stage 2); reads prompts from S3',
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
-      entry: path.join(__dirname, '../../../../../src/functions/runLlmAnalysis/index.ts'),
+      entry: path.join(__dirname, '../../../../src/functions/runLlmAnalysis/index.ts'),
       handler: 'handler',
       timeout: Duration.minutes(5),
       memorySize: 512,

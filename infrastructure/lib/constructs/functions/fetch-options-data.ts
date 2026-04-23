@@ -29,7 +29,7 @@ export class FetchOptionsData extends Construct {
         'Fetches options data (IV rank, Greeks, vol surface, key levels) per ticker from FlashAlpha and stores raw JSON to S3',
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
-      entry: path.join(__dirname, '../../../../../src/functions/fetchOptionsData/index.ts'),
+      entry: path.join(__dirname, '../../../../src/functions/fetchOptionsData/index.ts'),
       handler: 'handler',
       timeout: Duration.minutes(1),
       memorySize: 256,

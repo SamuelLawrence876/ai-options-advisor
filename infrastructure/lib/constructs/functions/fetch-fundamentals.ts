@@ -29,7 +29,7 @@ export class FetchFundamentals extends Construct {
         'Fetches earnings dates, dividends, analyst ratings, and short interest per ticker from Alpha Vantage and stores raw JSON to S3',
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
-      entry: path.join(__dirname, '../../../../../src/functions/fetchFundamentals/index.ts'),
+      entry: path.join(__dirname, '../../../../src/functions/fetchFundamentals/index.ts'),
       handler: 'handler',
       timeout: Duration.minutes(1),
       memorySize: 256,
