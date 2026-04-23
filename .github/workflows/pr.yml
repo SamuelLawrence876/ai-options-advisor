@@ -1,0 +1,189 @@
+name: PR - Ephemeral Environment
+
+# Runs on every PR against main.
+# - opened / synchronize / reopened  →  deploy (or re-deploy) the branch stack
+# - closed (merged or abandoned)     →  destroy the branch stack
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+
+permissions:
+  id-token: write # OIDC credential exchange
+  contents: read
+  pull-requests: write # PR comment with stack URL
+
+env:
+  STACK_BASE_NAME: serverless-starter # must match the default in infrastructure/bin/app.ts
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Derive a short, CDK-safe stage name from the
+  # branch name so every PR gets its own stack.
+  #
+  # Strategy (in order):
+  #  1. Extract a ticket-style ID  (e.g. abc-123)
+  #     from branch names like feature/ABC-123-my-work
+  #  2. Fall back to a sanitised branch slug
+  #     (lowercase, non-alphanumeric → hyphen, max 20 chars)
+  # ─────────────────────────────────────────────
+  resolve-stage:
+    name: Resolve stage name
+    runs-on: ubuntu-latest
+    outputs:
+      stage: ${{ steps.derive.outputs.stage }}
+    steps:
+      - name: Derive stage from branch name
+        id: derive
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          # Try ticket-style ID first (case-insensitive, e.g. ABC-123)
+          STAGE=$(echo "$BRANCH" | grep -oiE '[a-z]+-[0-9]+' | head -1 | tr '[:upper:]' '[:lower:]')
+          # Fallback: full sanitised slug
+          if [ -z "$STAGE" ]; then
+            STAGE=$(echo "$BRANCH" \
+              | tr '[:upper:]' '[:lower:]' \
+              | sed 's/[^a-z0-9]/-/g' \
+              | sed 's/-\+/-/g' \
+              | sed 's/^-\|-$//g' \
+              | cut -c1-20)
+          fi
+          echo "Resolved stage: $STAGE"
+          echo "stage=$STAGE" >> "$GITHUB_OUTPUT"
+
+  # ─────────────────────────────────────────────
+  # Deploy (or re-deploy) the ephemeral stack.
+  # The CDK stack is named  <STACK_BASE_NAME>-<stage>
+  # ─────────────────────────────────────────────
+  deploy:
+    name: Deploy — ${{ needs.resolve-stage.outputs.stage }}
+    needs: resolve-stage
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    environment: ephemeral
+    env:
+      STAGE: ${{ needs.resolve-stage.outputs.stage }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bootstrap CDK (idempotent)
+        run: npx cdk bootstrap
+
+      - name: Deploy ephemeral stack
+        run: |
+          npx cdk deploy "$STACK_BASE_NAME-$STAGE" \
+            --require-approval never \
+            -c stackType=ephemeral \
+            -c stage="$STAGE" \
+            --outputs-file cdk-outputs.json
+
+      - name: Extract API URL
+        id: outputs
+        run: echo "api-url=$(jq -r '.[keys[0]].ApiUrl' cdk-outputs.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Post API URL to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let apiUrl = 'Not available';
+            try {
+              const outputs = JSON.parse(fs.readFileSync('cdk-outputs.json', 'utf8'));
+              const stackKey = Object.keys(outputs)[0];
+              apiUrl = outputs[stackKey]?.ApiUrl ?? apiUrl;
+            } catch (_) {}
+
+            const stage = process.env.STAGE;
+            const body = [
+              '### Ephemeral environment deployed :rocket:',
+              '',
+              `**Stack:** \`${{ env.STACK_BASE_NAME }}-${stage}\``,
+              `**API URL:** ${apiUrl}`,
+              '',
+              '_This stack will be automatically destroyed when the PR is closed._',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c =>
+              c.user?.login === 'github-actions[bot]' &&
+              c.body?.includes('Ephemeral environment deployed')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Run acceptance tests
+        run: npm run test:acceptance
+        env:
+          API_URL: ${{ steps.outputs.outputs.api-url }}
+
+  # ─────────────────────────────────────────────
+  # Destroy the ephemeral stack when the PR closes
+  # (merged or abandoned — either way, clean up).
+  # ─────────────────────────────────────────────
+  destroy:
+    name: Destroy — ${{ needs.resolve-stage.outputs.stage }}
+    needs: resolve-stage
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    environment: ephemeral
+    env:
+      STAGE: ${{ needs.resolve-stage.outputs.stage }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Destroy ephemeral stack
+        run: |
+          npx cdk destroy "$STACK_BASE_NAME-$STAGE" \
+            --force \
+            -c stackType=ephemeral \
+            -c stage="$STAGE"
