@@ -107,7 +107,7 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
 
   const apiKey = await getSecretValue(alphaVantageArn);
 
-  const [earningsEntry, overview] = await Promise.all([
+  const [earningsEntry, overview, ratings] = await Promise.all([
     fetchEarningsCalendar(symbol, apiKey).catch((err) => {
       error(`Earnings calendar failed for ${symbol}`, err as Error);
       return undefined;
@@ -132,6 +132,23 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
     ? parseFloat(overview.AnalystTargetPrice)
     : undefined;
 
+  const buyCount =
+    parseInt(ratings?.analystRatingsBuy ?? ratings?.buy ?? '0', 10) +
+    parseInt(ratings?.analystRatingsStrongBuy ?? ratings?.strongBuy ?? '0', 10);
+  const sellCount =
+    parseInt(ratings?.analystRatingsSell ?? ratings?.sell ?? '0', 10) +
+    parseInt(ratings?.analystRatingsStrongSell ?? ratings?.strongSell ?? '0', 10);
+  const holdCount = parseInt(ratings?.analystRatingsHold ?? ratings?.hold ?? '0', 10);
+  const totalAnalysts = buyCount + sellCount + holdCount;
+  const analystConsensus =
+    totalAnalysts === 0
+      ? 'N/A'
+      : buyCount > sellCount + holdCount
+        ? 'Buy'
+        : sellCount > buyCount + holdCount
+          ? 'Sell'
+          : 'Hold';
+
   const fundamentals: FundamentalsData = {
     symbol,
     earningsDate,
@@ -140,7 +157,7 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
     exDivDte,
     annualDividendYield,
     meanPriceTarget,
-    analystConsensus: 'N/A',
+    analystConsensus,
     unusualActivityFlag: false,
     fetchedAt: new Date().toISOString(),
   };

@@ -16,7 +16,7 @@ import {
 
 jest.setTimeout(120000);
 
-const TEST_DATE = `acceptance-${new Date().toISOString().slice(0, 10)}`;
+const TEST_DATE = `acceptance-${Date.now()}`;
 const stage = getStage();
 const region = getRegion();
 const names = resourceNames(stage);

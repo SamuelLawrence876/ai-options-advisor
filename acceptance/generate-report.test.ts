@@ -5,24 +5,19 @@ import optionsFixture from './fixtures/options.json';
 import watchlistItemFixture from './fixtures/watchlist-item.json';
 import { getBucketName, getRegion, getStage, resourceNames } from './utils/config';
 import { invokeLambda } from './utils/lambda';
-import { objectExists, getJsonObject } from './utils/s3';
-import {
-  EnrichedTicker,
-  MarketContext,
-  PortfolioSynthesis,
-  TickerAnalysis,
-  WatchlistItem,
-} from '../src/types';
+import { objectExists, getTextObject } from './utils/s3';
+import { EnrichedTicker, MarketContext, PortfolioSynthesis, TickerAnalysis, WatchlistItem } from '../src/types';
 
 jest.setTimeout(60000);
 
-const TEST_DATE = `acceptance-${new Date().toISOString().slice(0, 10)}`;
+const TEST_DATE = `acceptance-${Date.now()}`;
 const stage = getStage();
 const region = getRegion();
 const names = resourceNames(stage);
 const ticker = watchlistItemFixture as WatchlistItem;
 
 let bucket: string;
+let reportResult: { reportKey: string; synthesis: PortfolioSynthesis; tickerAnalyses: TickerAnalysis[] };
 
 const fixtureAnalysis: TickerAnalysis = {
   symbol: 'AAPL',
@@ -101,36 +96,28 @@ const fixtureEnrichedTicker: EnrichedTicker = {
 
 beforeAll(async () => {
   bucket = await getBucketName(stage, region);
+  const result = await invokeLambda<{
+    reportKey: string;
+    synthesis: PortfolioSynthesis;
+    tickerAnalyses: TickerAnalysis[];
+  }>(names.generateReportFn, {
+    synthesis: fixtureSynthesis,
+    tickerAnalyses: [fixtureAnalysis],
+    enrichedTickers: [fixtureEnrichedTicker],
+    date: TEST_DATE,
+    marketContext: marketContextFixture,
+  });
+  reportResult = result.payload;
 });
 
 describe('generateReport Lambda', () => {
-  it('invokes without error and writes HTML report to S3', async () => {
-    const result = await invokeLambda<{ reportKey: string }>(names.generateReportFn, {
-      synthesis: fixtureSynthesis,
-      tickerAnalyses: [fixtureAnalysis],
-      enrichedTickers: [fixtureEnrichedTicker],
-      date: TEST_DATE,
-      marketContext: marketContextFixture,
-    });
-
-    expect(result.statusCode).toBe(200);
-    expect(result.payload.reportKey).toBe(`reports/${TEST_DATE}/full-report.html`);
-
-    await expect(
-      objectExists(bucket, `reports/${TEST_DATE}/full-report.html`),
-    ).resolves.toBe(true);
+  it('writes HTML report to S3 at the expected key', async () => {
+    expect(reportResult.reportKey).toBe(`reports/${TEST_DATE}/full-report.html`);
+    await expect(objectExists(bucket, `reports/${TEST_DATE}/full-report.html`)).resolves.toBe(true);
   });
 
   it('HTML report contains expected sections', async () => {
-    const s3 = await import('./utils/s3');
-    const response = await import('@aws-sdk/client-s3').then(({ GetObjectCommand, S3Client }) =>
-      new S3Client({}).send(
-        new GetObjectCommand({ Bucket: bucket, Key: `reports/${TEST_DATE}/full-report.html` }),
-      ),
-    );
-
-    const html = await response.Body?.transformToString();
-    expect(html).toBeDefined();
+    const html = await getTextObject(bucket, `reports/${TEST_DATE}/full-report.html`);
     expect(html).toContain('Options Analysis Report');
     expect(html).toContain('Top Opportunities This Week');
     expect(html).toContain('Full Watchlist Review');
@@ -139,20 +126,8 @@ describe('generateReport Lambda', () => {
     expect(html).toContain(marketContextFixture.vixRegime);
   });
 
-  it('returns synthesis and ticker analyses in the response for chaining', async () => {
-    const result = await invokeLambda<{
-      reportKey: string;
-      synthesis: PortfolioSynthesis;
-      tickerAnalyses: TickerAnalysis[];
-    }>(names.generateReportFn, {
-      synthesis: fixtureSynthesis,
-      tickerAnalyses: [fixtureAnalysis],
-      enrichedTickers: [fixtureEnrichedTicker],
-      date: TEST_DATE,
-      marketContext: marketContextFixture,
-    });
-
-    expect(result.payload.synthesis).toBeDefined();
-    expect(result.payload.tickerAnalyses).toBeInstanceOf(Array);
+  it('returns synthesis and ticker analyses for pipeline chaining', () => {
+    expect(reportResult.synthesis).toBeDefined();
+    expect(reportResult.tickerAnalyses).toBeInstanceOf(Array);
   });
 });

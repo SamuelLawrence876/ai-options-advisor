@@ -24,6 +24,13 @@ export async function getJsonObject<T>(bucket: string, key: string): Promise<T> 
   return JSON.parse(body) as T;
 }
 
+export async function getTextObject(bucket: string, key: string): Promise<string> {
+  const response = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const body = await response.Body?.transformToString();
+  if (!body) throw new Error(`Empty body for s3://${bucket}/${key}`);
+  return body;
+}
+
 export async function putJsonObject(bucket: string, key: string, data: unknown): Promise<void> {
   await s3.send(
     new PutObjectCommand({

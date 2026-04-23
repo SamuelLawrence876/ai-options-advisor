@@ -10,7 +10,7 @@ import { EnrichedTicker, WatchlistItem } from '../src/types';
 
 jest.setTimeout(60000);
 
-const TEST_DATE = `acceptance-${new Date().toISOString().slice(0, 10)}`;
+const TEST_DATE = `acceptance-${Date.now()}`;
 const stage = getStage();
 const region = getRegion();
 const names = resourceNames(stage);
@@ -118,10 +118,13 @@ describe('enrichAndScore Lambda', () => {
   });
 
   it('candidate trade has positive ROBP when strategy is viable', async () => {
-    const enriched = await getJsonObject<EnrichedTicker>(
-      bucket,
-      `enriched/${TEST_DATE}/${ticker.symbol}.json`,
-    );
+    const result = await invokeLambda<EnrichedTicker>(names.enrichAndScoreFn, {
+      ticker,
+      date: TEST_DATE,
+      marketContext: marketContextFixture,
+    });
+
+    const enriched = result.payload;
 
     if (enriched.suggestedStrategy !== 'SKIP' && enriched.candidateTrade) {
       expect(enriched.candidateTrade.robpAnnualised).toBeGreaterThan(0);

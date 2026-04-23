@@ -37,15 +37,18 @@ function selectStrategy(
   earningsClear: boolean,
   atrPct: number,
   strategyPref: string,
+  sharesHeld: number | undefined,
 ): StrategyRecommendation {
   if (!earningsClear) return 'SKIP';
   if (ivRank < 50) return 'SKIP';
 
-  if (strategyPref === 'COVERED_CALL' && trend === 'NEUTRAL') return 'COVERED_CALL';
+  if (strategyPref === 'COVERED_CALL' && (sharesHeld ?? 0) > 0) return 'COVERED_CALL';
   if (trend === 'BULLISH' && ivRank >= 50) return 'PUT_CREDIT_SPREAD';
-  if (trend === 'NEUTRAL' && ivRank >= 50) return 'COVERED_CALL';
-  if ((trend === 'NEUTRAL' || trend === 'BULLISH') && ivRank >= 60 && atrPct < 2) {
-    return 'IRON_CONDOR';
+  if (trend === 'NEUTRAL' && ivRank >= 50) {
+    if ((trend === 'NEUTRAL' || trend === 'BULLISH') && ivRank >= 60 && atrPct < 2) {
+      return 'IRON_CONDOR';
+    }
+    return 'COVERED_CALL';
   }
   return 'CSP';
 }
@@ -108,11 +111,6 @@ function selectCandidateStrike(
   const robpAnnualised = computeRobp(premium, bpr, strike.dte);
   const annualisedYield = computeAnnualisedYield(premium, strike.strike, strike.dte);
 
-  const priceTargetDistance =
-    fundamentals.meanPriceTarget && technicals.price > 0
-      ? ((fundamentals.meanPriceTarget - technicals.price) / technicals.price) * 100
-      : undefined;
-
   return {
     strategy,
     expiry: strike.expiry,
@@ -130,8 +128,7 @@ function selectCandidateStrike(
     annualisedYield,
     robpAnnualised,
     liquidityOk,
-    ...(priceTargetDistance !== undefined && { priceTargetDistance }),
-  } as CandidateTrade;
+  };
 }
 
 export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicker> => {
@@ -169,6 +166,7 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
     earningsClear,
     atrPct,
     ticker.strategyPref,
+    ticker.sharesHeld,
   );
 
   const candidateTrade = selectCandidateStrike(options, fundamentals, technicals, ticker, strategy);
@@ -177,11 +175,6 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
     : false;
 
   const liquidityOk = candidateTrade?.liquidityOk ?? false;
-
-  if (fundamentals.meanPriceTarget && technicals.price > 0) {
-    const dist = ((fundamentals.meanPriceTarget - technicals.price) / technicals.price) * 100;
-    (fundamentals as FundamentalsData & { priceTargetDistance: number }).priceTargetDistance = dist;
-  }
 
   const enriched: EnrichedTicker = {
     ticker,
