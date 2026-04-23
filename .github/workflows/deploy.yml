@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 env:
-  STACK_BASE_NAME: serverless-starter
+  STACK_BASE_NAME: options-advisor
 
 jobs:
   deploy-dev:

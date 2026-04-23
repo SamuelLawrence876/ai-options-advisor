@@ -1,149 +1,156 @@
-# serverless-aws-template
+# options-advisor
 
-A production-ready AWS serverless starter template using **AWS CDK v2**, **TypeScript**, and **GitHub Actions**.
+A weekly AI-powered report that tells you which options trades on your personal stock watchlist are worth making — and why — ranked by return on buying power.
 
-## What's included
+See [PLAN.md](./PLAN.md) for the full build plan.
 
-- **Lambda function** with typed API Gateway v2 event handling
-- **HTTP API** (API Gateway v2) with custom domain and JWT authorisation
-- **Cognito user pool** with hosted UI, JWT authoriser, and SSM-stored config
-- **DynamoDB table** with PAY_PER_REQUEST billing and prod/non-prod retention policy
-- **S3 bucket** for private object storage
-- **CloudFront + S3** frontend distribution with custom domain (prod and dev only)
-- **Dead letter queue** for failed Lambda invocations
-- **CDK v2 stack** with `NodejsFunction` (esbuild bundling, ARM64, Node 20)
-- **GitHub Actions** CI/CD — lint/test on PRs, sequential dev → prod deploy on merge to `main`
-- **Ephemeral PR stacks** — isolated AWS environment per PR, torn down on close
-- **Jest** unit tests with AWS SDK mocking
-- **ESLint + Prettier** with Airbnb TypeScript rules
+---
+
+## What it does
+
+## Project structure
+
+```
+infrastructure/
+  bin/app.ts                              CDK entry point
+  lib/
+    config.ts                             Stack name, region, Secrets Manager paths
+    main-stack.ts                         Wires all constructs together
+    constructs/
+      data/
+        storage.ts                        S3 data bucket with lifecycle rules
+        tables.ts                         4 DynamoDB tables
+      secrets/
+        secrets.ts                        API key secrets (FlashAlpha, Alpha Vantage)
+      functions/
+        fetch-options-data.ts             Lambda: IV rank, Greeks, vol surface
+        fetch-fundamentals.ts             Lambda: earnings, dividends, analyst ratings
+        fetch-technicals.ts               Lambda: trend, moving averages, ATR
+        fetch-market-context.ts           Lambda: VIX, SPY/QQQ, sector ETF IV
+        enrich-and-score.ts               Lambda: score each ticker, compute ROBP
+        run-llm-analysis.ts               Lambda: Claude analysis via Bedrock
+        generate-report.ts                Lambda: render HTML report
+        deliver-report.ts                 Lambda: store to S3 and send via email
+      state-machine/
+        state-machine.ts                  Step Functions orchestrator
+      scheduler/
+        scheduler.ts                      EventBridge cron — Monday 06:00 UTC
+src/
+  functions/                              Lambda handler implementations
+  utils/logger.ts                         Structured JSON logger
+.github/workflows/                        CI/CD
+```
+
+---
+
+## S3 bucket layout
+
+```
+options-analysis-{account}-{region}-{stage}/
+  raw-data/
+    {YYYY-MM-DD}/
+      {TICKER}/
+        options.json
+        fundamentals.json
+        technicals.json
+        market-context.json
+  enriched/
+    {YYYY-MM-DD}/
+      {TICKER}.json
+  prompts/
+    system-prompt.txt
+    ticker-analysis-template.txt
+    portfolio-synthesis-template.txt
+  reports/
+    {YYYY-MM-DD}/
+      full-report.html
+      summary.json
+```
+
+Raw data is never overwritten mid-run — if a run fails you can reprocess from S3 without re-fetching from paid APIs. `raw-data/` expires after 90 days in production (14 days in dev).
+
+---
 
 ## Getting started
 
-### 1. Fork / use as template
-
-Click **Use this template** on GitHub, then clone your new repo.
-
-### 2. Rename the stack
-
-Update the `name` field in `package.json` and the values in `infrastructure/lib/config.ts`:
-
-```ts
-export const config = {
-  stackName: 'your-project-name',
-  deploymentRegion: 'us-east-1',
-
-  domain: {
-    root: 'your-domain.com',
-    api: 'api',
-    app: 'app',
-    auth: 'your-project-auth',
-  },
-
-  ssm: {
-    cognitoIssuerUrl: (stage: string) => `/your-project-name/${stage}/cognito/issuer-url`,
-    cognitoClientId: (stage: string) => `/your-project-name/${stage}/cognito/client-id`,
-  },
-};
-```
-
-### 3. Install dependencies
+### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 4. Run tests
+### 2. Run tests
 
 ```bash
 npm test
 ```
 
-### 5. Deploy
-
-Ensure your AWS credentials are configured, then:
+### 3. Bootstrap and deploy
 
 ```bash
-npx cdk bootstrap     # first time only
-npx cdk deploy        # deploys the prod stack
+login                           # authenticate to AWS
+npx cdk bootstrap               # first time only, per account/region
+npx cdk deploy                  # production stack
+npx cdk deploy -c stackType=dev # dev stack
 ```
 
-## Project structure
+### 4. Populate API keys
 
+After the first deploy, add your keys to Secrets Manager:
+
+```bash
+aws secretsmanager put-secret-value \
+  --secret-id /options-advisor/production/flash-alpha-api-key \
+  --secret-string '{"apiKey":"YOUR_KEY"}'
+
+aws secretsmanager put-secret-value \
+  --secret-id /options-advisor/production/alpha-vantage-api-key \
+  --secret-string '{"apiKey":"YOUR_KEY"}'
 ```
-├── infrastructure/
-│   ├── bin/app.ts                       # CDK entry point — resolves stack type and stage
-│   └── lib/
-│       ├── config.ts                    # Stack name, region, domain, SSM paths
-│       ├── main-stack.ts                # Stack definition
-│       └── constructs/
-│           ├── api/api-gateway.ts       # HTTP API v2, custom domain, JWT authoriser
-│           ├── auth/auth.ts             # Cognito user pool, hosted UI, SSM outputs
-│           ├── data/database.ts         # DynamoDB table
-│           ├── data/storage.ts          # S3 bucket
-│           ├── frontend/frontend.ts     # CloudFront + S3 + custom domain
-│           └── lambda/request-handler.ts# NodejsFunction, DLQ, env vars, IAM grants
-├── src/
-│   ├── functions/
-│   │   └── requestHandler/             # Lambda handler, environment, data service + tests
-│   ├── models/                         # Shared TypeScript types
-│   └── utils/logger.ts                 # Structured JSON logger
-├── .github/workflows/                  # GitHub Actions CI/CD
-└── cdk.json
+
+### 5. Seed the watchlist
+
+Add tickers to the `production-watchlist` DynamoDB table:
+
+```json
+{
+  "symbol": "AAPL",
+  "strategy_pref": "COVERED_CALL",
+  "cost_basis": 165.00,
+  "target_yield_pct": 1.5,
+  "max_dte": 45,
+  "min_dte": 21,
+  "active": true,
+  "notes": "hold 200 shares"
+}
 ```
+
+---
 
 ## CI/CD
 
-### GitHub Actions workflows
+| Workflow | Trigger | What happens |
+|---|---|---|
+| `ci.yml` | Every push and PR | Lint, type-check, unit tests |
+| `deploy.yml` | Merge to `main` | Deploy dev, then production |
 
-| Workflow     | Trigger                            | What happens                                                                                   |
-| ------------ | ---------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `ci.yml`     | Push to any branch, PR to `main`   | Lint, type-check, unit tests                                                                   |
-| `pr.yml`     | PR opened / updated against `main` | Deploy **ephemeral stack** named `serverless-starter-{stage}` and post the URL as a PR comment |
-| `pr.yml`     | PR closed (merged or abandoned)    | **Destroy** the ephemeral stack automatically                                                  |
-| `deploy.yml` | Push to `main`                     | Deploy **dev** stack, then **production** stack sequentially                                   |
+Workflows use AWS OIDC — no long-lived access keys stored in GitHub. Create two GitHub Environments (`dev`, `production`) each with an `AWS_DEPLOY_ROLE_ARN` secret.
 
-### Ephemeral environments
+---
 
-Every PR against `main` gets its own isolated AWS stack so you can test changes end-to-end before merging. Ephemeral stacks share the **dev** Cognito user pool via SSM parameters rather than creating their own.
+## API accounts needed
 
-**How the stage name is derived from the branch name:**
+| Provider | Used for | Cost |
+|---|---|---|
+| FlashAlpha | Options data — IV rank, Greeks, vol surface, key levels | Free (5 req/day) → Growth tier for >5 tickers |
+| Alpha Vantage | Price history, fundamentals, earnings calendar | Free (25 req/day) — enough for ~15 tickers |
+| AWS Bedrock | Claude inference | Pay-per-token — negligible at weekly cadence |
+| AWS SES | Email delivery | Near-free at this volume |
 
-| Branch                        | Derived stage                             |
-| ----------------------------- | ----------------------------------------- |
-| `feature/ABC-123-my-feature`  | `abc-123` (ticket ID extracted)           |
-| `fix/update-handler`          | `fix-update-handler` (sanitised slug)     |
-| `dependabot/npm_and_yarn/...` | `dependabot-npm-and` (slug, max 20 chars) |
+---
 
-The CDK stack is named `<stackName>-<stage>` (e.g. `serverless-starter-abc-123`).
+## Adding a new Lambda
 
-To deploy or destroy an ephemeral stack manually:
-
-```bash
-npx cdk deploy serverless-starter-abc-123 --require-approval never -c stackType=ephemeral -c stage=abc-123
-npx cdk destroy serverless-starter-abc-123 --force -c stackType=ephemeral -c stage=abc-123
-```
-
-### Required GitHub secrets and environments
-
-Workflows use AWS OIDC — no long-lived access keys are stored in GitHub.
-
-Create three **GitHub Environments** (`ephemeral`, `dev`, `production`) and add this secret to each:
-
-| Secret                | Description                                         |
-| --------------------- | --------------------------------------------------- |
-| `AWS_DEPLOY_ROLE_ARN` | ARN of the IAM role GitHub Actions assumes via OIDC |
-
-**Settings → Environments → [environment name] → Secrets**
-
-The IAM role trust policy must allow `token.actions.githubusercontent.com` as the OIDC provider. See the [AWS docs](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html) for setup.
-
-## Adding a new Lambda function
-
-1. Create a new folder under `src/functions/`
-2. Export a `handler` function
-3. Add a `NodejsFunction` construct in `infrastructure/lib/constructs/lambda/`
-4. Instantiate it in `infrastructure/lib/main-stack.ts` and wire it to an API route or event source
-
-## Environment variables
-
-The Lambda reads environment variables through `src/functions/requestHandler/environment.ts`. Add new variables there and pass them via the construct's `environment` prop in CDK.
+1. Create `src/functions/{functionName}/index.ts` and export a `handler`
+2. Create `infrastructure/lib/constructs/functions/{function-name}.ts` with a `NodejsFunction` construct and the required IAM grants
+3. Instantiate it in `main-stack.ts` and pass `fn` into `PipelineStateMachine` props

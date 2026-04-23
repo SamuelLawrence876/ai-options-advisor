@@ -15,7 +15,7 @@ permissions:
   pull-requests: write # PR comment with stack URL
 
 env:
-  STACK_BASE_NAME: serverless-starter # must match the default in infrastructure/bin/app.ts
+  STACK_BASE_NAME: options-advisor # must match the default in infrastructure/bin/app.ts
 
 jobs:
   # ─────────────────────────────────────────────

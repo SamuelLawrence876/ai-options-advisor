@@ -1,8 +1,6 @@
-import { RemovalPolicy } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
 import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
-import { config } from '../../config';
-import { addStagePrefix } from '../../utils/naming';
 
 export interface StorageProps {
   stage: string;
@@ -16,13 +14,21 @@ export class Storage extends Construct {
     super(scope, id);
 
     const { stage, isProd } = props;
+    const { account, region } = Stack.of(this);
 
     this.bucket = new Bucket(this, 'Bucket', {
-      bucketName: `${config.stackName}-${addStagePrefix(stage, 'storage')}`,
+      bucketName: `options-analysis-${account}-${region}-${stage}`,
       encryption: BucketEncryption.S3_MANAGED,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
       removalPolicy: isProd ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
       autoDeleteObjects: !isProd,
+      lifecycleRules: [
+        {
+          id: 'expire-raw-data',
+          prefix: 'raw-data/',
+          expiration: Duration.days(isProd ? 90 : 14),
+        },
+      ],
     });
   }
 }

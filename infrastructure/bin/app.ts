@@ -1,22 +1,15 @@
 #!/usr/bin/env node
 import { App, Tags } from 'aws-cdk-lib';
 import { config } from '../lib/config';
-import { ServerlessStack, StackType } from '../lib/main-stack';
+import { OptionsAnalysisStack, StackType } from '../lib/main-stack';
 
 const app = new App();
 
 const stackType = (app.node.tryGetContext('stackType') as StackType | undefined) ?? 'prod';
-const branchStage = app.node.tryGetContext('stage') as string | undefined;
+const stage = stackType === 'prod' ? 'production' : 'dev';
+const stackId = stackType === 'prod' ? config.stackName : `${config.stackName}-dev`;
 
-const stage = stackType === 'prod' ? 'production' : stackType === 'dev' ? 'dev' : branchStage!;
-const stackId =
-  stackType === 'prod'
-    ? config.stackName
-    : stackType === 'dev'
-      ? `${config.stackName}-dev`
-      : `${config.stackName}-${stage}`;
-
-const stack = new ServerlessStack(app, stackId, {
+const stack = new OptionsAnalysisStack(app, stackId, {
   stackType,
   stage,
   env: {

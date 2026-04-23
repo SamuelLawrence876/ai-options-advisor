@@ -1,16 +1,9 @@
 export const config = {
-  stackName: 'serverless-starter',
+  stackName: 'options-advisor',
   deploymentRegion: 'us-east-1',
 
-  domain: {
-    root: 'samuel-lawrence.com',
-    api: 'example-api',
-    app: 'example-app',
-    auth: 'serverless-starter-auth',
-  },
-
-  ssm: {
-    cognitoIssuerUrl: (stage: string) => `/serverless-starter/${stage}/cognito/issuer-url`,
-    cognitoClientId: (stage: string) => `/serverless-starter/${stage}/cognito/client-id`,
+  secrets: {
+    flashAlphaApiKey: (stage: string) => `/options-advisor/${stage}/flash-alpha-api-key`,
+    alphaVantageApiKey: (stage: string) => `/options-advisor/${stage}/alpha-vantage-api-key`,
   },
 } as const;

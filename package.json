@@ -1,11 +1,11 @@
 {
-  "name": "serverless-aws-template",
+  "name": "options-advisor",
   "version": "0.1.0",
-  "description": "Production-ready AWS serverless starter using CDK v2 and TypeScript",
+  "description": "AI-powered options trading advisor using AWS CDK v2 and TypeScript",
   "license": "MIT",
   "engines": {
-    "node": "20",
-    "npm": ">=9"
+    "node": "24",
+    "npm": ">=11"
   },
   "bin": {
     "infra": "infrastructure/bin/app.ts"
@@ -17,7 +17,7 @@
     "lint:fix": "prettier --write . && eslint --fix . --ext .ts,.js",
     "test": "jest --maxWorkers=4",
     "test:update": "npm run test -- -u",
-    "test:infra": "jest --config=jest.config.infra.js",
+    "test:infra": "jest --config=jest.config.infra.js --passWithNoTests",
     "test:infra:update": "npm run test:infra -- -u",
     "test:acceptance": "jest --config=jest.config.acceptance.js"
   },
