@@ -18,7 +18,18 @@
     "test": "jest --maxWorkers=4",
     "test:update": "npm run test -- -u",
     "test:infra": "jest --config=jest.config.infra.js --passWithNoTests",
-    "test:acceptance": "jest --config=jest.config.acceptance.js"
+    "test:acceptance": "jest --config=jest.config.acceptance.js",
+    "test:acceptance:pipeline": "jest --config=jest.config.acceptance.js acceptance/pipeline.test.ts",
+    "test:acceptance:lambdas": "jest --config=jest.config.acceptance.js --testPathIgnorePatterns pipeline",
+    "deploy": "cdk deploy --context stackType=prod --require-approval never",
+    "deploy:dev": "cdk deploy --context stackType=dev --require-approval never",
+    "diff": "cdk diff --context stackType=prod",
+    "diff:dev": "cdk diff --context stackType=dev",
+    "analyse": "bash scripts/run-analysis.sh",
+    "analyse:dev": "bash scripts/run-analysis.sh --stage dev",
+    "analyse:date": "bash scripts/run-analysis.sh --date",
+    "seed": "bash scripts/seed-watchlist.sh",
+    "seed:dev": "bash scripts/seed-watchlist.sh dev"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1035.0",
@@ -31,6 +42,9 @@
     "constructs": "^10.0.0"
   },
   "devDependencies": {
+    "@aws-sdk/client-lambda": "^3.1035.0",
+    "@aws-sdk/client-sfn": "^3.1035.0",
+    "@aws-sdk/client-sts": "^3.1035.0",
     "@types/aws-lambda": "^8.10.145",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.14.0",

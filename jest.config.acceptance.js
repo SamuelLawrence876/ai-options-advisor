@@ -1,5 +1,5 @@
 module.exports = {
   ...require('./jest.config.base'),
-  roots: ['<rootDir>/src/acceptance'],
-  testTimeout: 30000,
+  roots: ['<rootDir>/acceptance'],
+  testTimeout: 5 * 60 * 1000,
 };

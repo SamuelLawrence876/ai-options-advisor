@@ -7,5 +7,6 @@ module.exports = {
     '/dist/',
     '/infrastructure/',
     '/src/acceptance/',
+    '/acceptance/',
   ],
 };

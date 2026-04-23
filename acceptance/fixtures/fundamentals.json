@@ -1,0 +1,18 @@
+{
+  "symbol": "AAPL",
+  "earningsDate": "2026-07-31",
+  "earningsDte": 94,
+  "historicalEarningsMovePct": 4.2,
+  "exDivDate": "2026-05-09",
+  "exDivDte": 11,
+  "annualDividendYield": 0.52,
+  "shortInterestPct": 0.8,
+  "daysToCover": 1.2,
+  "analystConsensus": "Buy",
+  "meanPriceTarget": 215.0,
+  "priceTargetDistance": 13.7,
+  "recentUpgrades": 3,
+  "recentDowngrades": 0,
+  "unusualActivityFlag": false,
+  "fetchedAt": "2026-04-28T06:11:00.000Z"
+}

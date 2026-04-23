@@ -1,0 +1,12 @@
+{
+  "symbol": "AAPL",
+  "strategyPref": "COVERED_CALL",
+  "sharesHeld": 100,
+  "costBasis": 165.00,
+  "targetYieldPct": 8,
+  "minDte": 21,
+  "maxDte": 45,
+  "active": true,
+  "sector": "Technology",
+  "notes": "Acceptance test fixture — core long position"
+}

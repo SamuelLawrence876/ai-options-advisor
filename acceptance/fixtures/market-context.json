@@ -1,0 +1,17 @@
+{
+  "date": "2026-04-28",
+  "vix": 18.5,
+  "vix20dAvg": 17.2,
+  "vixRegime": "NORMAL",
+  "spyPrice": 520.45,
+  "spyTrend": "BULL",
+  "qqqPrice": 440.12,
+  "qqqTrend": "BULL",
+  "marketTrend": "BULL",
+  "sectorIvs": {
+    "Technology": 24.5,
+    "Financials": 18.2,
+    "Energy": 22.1
+  },
+  "fetchedAt": "2026-04-28T06:05:00.000Z"
+}
