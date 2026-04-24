@@ -5,7 +5,11 @@ import { classifyMarketTrend, classifyVixRegime, computeMovingAverage } from '..
 import { putJson } from '../../utils/aws/s3';
 import { getSecretValue } from '../../utils/aws/secrets';
 import { fetchFlashAlphaIv } from '../../utils/clients/flashAlpha';
-import { fetchYahooOhlcv } from '../../utils/clients/yahoo';
+import {
+  fetchFinnhubEarningsCalendar,
+  fetchFinnhubOhlcv,
+  fetchFinnhubQuote,
+} from '../../utils/clients/finnhub';
 
 const SECTOR_ETF_MAP: Record<string, string> = {
   Technology: 'XLK',
@@ -31,40 +35,50 @@ interface FetchMarketContextResult {
   tickers: WatchlistItem[];
 }
 
+function dateOffsetDays(base: string, days: number): string {
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export const handler = async (
   event: FetchMarketContextEvent,
 ): Promise<FetchMarketContextResult> => {
   const bucketName = process.env.BUCKET_NAME!;
   const watchlistTable = process.env.WATCHLIST_TABLE!;
   const flashAlphaArn = process.env.FLASH_ALPHA_SECRET_ARN!;
+  const finnhubArn = process.env.FINNHUB_SECRET_ARN!;
 
   const date = event.date ?? new Date().toISOString().slice(0, 10);
+  const from60d = dateOffsetDays(date, -60);
 
   info('fetch-market-context started', { date });
 
-  const [flashAlphaKey, tickers] = await Promise.all([
+  const [flashAlphaKey, finnhubKey, tickers] = await Promise.all([
     getSecretValue(flashAlphaArn),
+    getSecretValue(finnhubArn),
     getActiveWatchlist(watchlistTable),
   ]);
 
-  const [vixBars, spyBars, qqqBars] = await Promise.all([
-    fetchYahooOhlcv('^VIX', '60d'),
-    fetchYahooOhlcv('SPY', '60d'),
-    fetchYahooOhlcv('QQQ', '60d'),
+  const [vixBars, spyBars, qqqBars, spyPrice, qqqPrice, vixPrice] = await Promise.all([
+    fetchFinnhubOhlcv('^VIX', from60d, date, finnhubKey),
+    fetchFinnhubOhlcv('SPY', from60d, date, finnhubKey),
+    fetchFinnhubOhlcv('QQQ', from60d, date, finnhubKey),
+    fetchFinnhubQuote('SPY', finnhubKey),
+    fetchFinnhubQuote('QQQ', finnhubKey),
+    fetchFinnhubQuote('^VIX', finnhubKey),
   ]);
 
   const vixCloses = vixBars.map(b => b.close);
   const spyCloses = spyBars.map(b => b.close);
   const qqqCloses = qqqBars.map(b => b.close);
 
-  const vix = vixCloses[vixCloses.length - 1] ?? 20;
+  const vix = vixPrice;
   const vix20dAvg = computeMovingAverage(vixCloses, 20);
 
-  const spyPrice = spyCloses[spyCloses.length - 1] ?? 0;
   const spyMa20 = computeMovingAverage(spyCloses, 20);
   const spyMa50 = computeMovingAverage(spyCloses, 50);
 
-  const qqqPrice = qqqCloses[qqqCloses.length - 1] ?? 0;
   const qqqMa20 = computeMovingAverage(qqqCloses, 20);
   const qqqMa50 = computeMovingAverage(qqqCloses, 50);
 
@@ -95,6 +109,14 @@ export const handler = async (
     }),
   );
 
+  const earningsTo = dateOffsetDays(date, 90);
+  const earningsCalendar = await fetchFinnhubEarningsCalendar(date, earningsTo, finnhubKey).catch(
+    err => {
+      error('Failed to fetch earnings calendar', err as Error);
+      return {} as Record<string, string>;
+    },
+  );
+
   const marketContext: MarketContext = {
     date,
     vix,
@@ -109,7 +131,10 @@ export const handler = async (
     fetchedAt: new Date().toISOString(),
   };
 
-  await putJson(bucketName, `raw-data/${date}/market-context.json`, marketContext);
+  await Promise.all([
+    putJson(bucketName, `raw-data/${date}/market-context.json`, marketContext),
+    putJson(bucketName, `raw-data/${date}/earnings-calendar.json`, earningsCalendar),
+  ]);
 
   info('fetch-market-context complete', { date, vix, marketTrend, tickerCount: tickers.length });
 

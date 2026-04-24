@@ -2,7 +2,8 @@ import { MarketContext, TechnicalsData, WatchlistItem } from '../../types';
 import { error, info } from '../../utils/logger';
 import { computeAtr, computeMovingAverage, classifyTrend } from '../../utils/metrics';
 import { putJson } from '../../utils/aws/s3';
-import { fetchYahooOhlcv } from '../../utils/clients/yahoo';
+import { getSecretValue } from '../../utils/aws/secrets';
+import { fetchFinnhubOhlcv, fetchFinnhubQuote } from '../../utils/clients/finnhub';
 
 interface FetchTechnicalsEvent {
   ticker: WatchlistItem;
@@ -10,25 +11,38 @@ interface FetchTechnicalsEvent {
   marketContext: MarketContext;
 }
 
+function dateOffsetDays(base: string, days: number): string {
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export const handler = async (event: FetchTechnicalsEvent): Promise<FetchTechnicalsEvent> => {
   const bucketName = process.env.BUCKET_NAME!;
+  const finnhubArn = process.env.FINNHUB_SECRET_ARN!;
 
   const { ticker, date } = event;
   const symbol = ticker.symbol;
 
   info('fetch-technicals started', { symbol, date });
 
+  const finnhubKey = await getSecretValue(finnhubArn);
+  const from1y = dateOffsetDays(date, -365);
+
   let bars;
+  let price: number;
   try {
-    bars = await fetchYahooOhlcv(symbol, '1y');
+    [bars, price] = await Promise.all([
+      fetchFinnhubOhlcv(symbol, from1y, date, finnhubKey),
+      fetchFinnhubQuote(symbol, finnhubKey),
+    ]);
   } catch (err) {
-    error(`Daily OHLCV fetch failed for ${symbol}`, err as Error);
+    error(`Price data fetch failed for ${symbol}`, err as Error);
     throw err;
   }
 
   const slicedBars = bars.slice(-252);
   const closes = slicedBars.map(b => b.close);
-  const price = closes[closes.length - 1] ?? 0;
   const ma20 = computeMovingAverage(closes, 20);
   const ma50 = computeMovingAverage(closes, 50);
   const trend = classifyTrend(price, ma20, ma50);

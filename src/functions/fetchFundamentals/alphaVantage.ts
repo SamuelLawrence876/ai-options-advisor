@@ -1,12 +1,3 @@
-interface AlphaVantageEarningsCalendar {
-  symbol: string;
-  name: string;
-  reportDate: string;
-  fiscalDateEnding: string;
-  estimate: string;
-  currency: string;
-}
-
 export interface AlphaVantageAnalystRatings {
   symbol: string;
   targetPrice?: string;
@@ -37,30 +28,6 @@ export function daysBetween(dateStr: string): number {
   const target = new Date(dateStr);
   const now = new Date();
   return Math.round((target.getTime() - now.getTime()) / 86400000);
-}
-
-export async function fetchEarningsCalendar(
-  symbol: string,
-  apiKey: string,
-): Promise<AlphaVantageEarningsCalendar | undefined> {
-  const url = `https://www.alphavantage.co/query?function=EARNINGS_CALENDAR&symbol=${symbol}&horizon=3month&apikey=${apiKey}`;
-  const response = await fetch(url);
-  const text = await response.text();
-  const lines = text.trim().split('\n').slice(1);
-  for (const line of lines) {
-    const parts = line.split(',');
-    if (parts[0] === symbol && parts.length >= 4) {
-      return {
-        symbol: parts[0],
-        name: parts[1],
-        reportDate: parts[2],
-        fiscalDateEnding: parts[3],
-        estimate: parts[4] ?? '',
-        currency: parts[5] ?? 'USD',
-      };
-    }
-  }
-  return undefined;
 }
 
 export async function fetchCompanyOverview(

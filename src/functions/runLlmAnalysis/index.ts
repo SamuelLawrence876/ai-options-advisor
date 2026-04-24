@@ -11,6 +11,19 @@ import { formatDossier } from '../../utils/dossier';
 import { info } from '../../utils/logger';
 import { PORTFOLIO_SYNTHESIS_PROMPT, SYSTEM_PROMPT, TICKER_ANALYSIS_PROMPT } from './prompts';
 
+function buildSkipReason(enriched: EnrichedTicker): string {
+  if (enriched.earningsInWindow) {
+    const dte = enriched.rawFundamentals.earningsDte;
+    const date = enriched.rawFundamentals.earningsDate ?? 'unknown date';
+    return `Earnings in ${dte} days (${date}) — inside expiry window. Re-evaluate after ${date}.`;
+  }
+  if (enriched.ivRankSignal === 'SKIP') {
+    const rank = enriched.rawOptions.ivRank.toFixed(0);
+    return `IV rank ${rank} below threshold (min: 50) — insufficient premium environment.`;
+  }
+  return 'Data unavailable for one or more required inputs.';
+}
+
 interface Stage1Event {
   stage: 1;
   ticker: WatchlistItem;
@@ -45,8 +58,7 @@ export const handler = async (
         symbol,
         recommendation: 'SKIP',
         confidence: 'LOW',
-        reasoning:
-          'Ticker skipped: IV rank below threshold, earnings inside expiry window, or data unavailable.',
+        reasoning: buildSkipReason(enriched),
         risks: [],
         flags: [],
       } as TickerAnalysis;

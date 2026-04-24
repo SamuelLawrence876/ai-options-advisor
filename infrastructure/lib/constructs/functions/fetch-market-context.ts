@@ -13,7 +13,7 @@ export interface FetchMarketContextProps {
   bucket: IBucket;
   watchlistTable: ITable;
   flashAlphaApiKey: ISecret;
-  alphaVantageApiKey: ISecret;
+  finnhubApiKey: ISecret;
 }
 
 export class FetchMarketContext extends Construct {
@@ -22,12 +22,12 @@ export class FetchMarketContext extends Construct {
   constructor(scope: Construct, id: string, props: FetchMarketContextProps) {
     super(scope, id);
 
-    const { stage, bucket, watchlistTable, flashAlphaApiKey, alphaVantageApiKey } = props;
+    const { stage, bucket, watchlistTable, flashAlphaApiKey, finnhubApiKey } = props;
 
     this.fn = new NodejsFunction(this, 'Function', {
       functionName: addStagePrefix(stage, 'fetch-market-context'),
       description:
-        'Fetches macro regime data once per pipeline run: VIX level and classification, SPY/QQQ trend, and sector ETF IV for each ticker in the watchlist',
+        'Fetches macro regime data once per pipeline run: VIX level and classification, SPY/QQQ trend, sector ETF IV, and earnings calendar',
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
       entry: path.join(__dirname, '../../../../src/functions/fetchMarketContext/index.ts'),
@@ -40,7 +40,7 @@ export class FetchMarketContext extends Construct {
         BUCKET_NAME: bucket.bucketName,
         WATCHLIST_TABLE: watchlistTable.tableName,
         FLASH_ALPHA_SECRET_ARN: flashAlphaApiKey.secretArn,
-        ALPHA_VANTAGE_SECRET_ARN: alphaVantageApiKey.secretArn,
+        FINNHUB_SECRET_ARN: finnhubApiKey.secretArn,
       },
       bundling: { minify: true, sourceMap: true },
     });
@@ -48,6 +48,6 @@ export class FetchMarketContext extends Construct {
     bucket.grantReadWrite(this.fn);
     watchlistTable.grantReadData(this.fn);
     flashAlphaApiKey.grantRead(this.fn);
-    alphaVantageApiKey.grantRead(this.fn);
+    finnhubApiKey.grantRead(this.fn);
   }
 }

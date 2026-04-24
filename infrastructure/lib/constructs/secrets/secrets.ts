@@ -11,6 +11,8 @@ export class Secrets extends Construct {
 
   public readonly alphaVantageApiKey: Secret;
 
+  public readonly finnhubApiKey: Secret;
+
   constructor(scope: Construct, id: string, props: SecretsProps) {
     super(scope, id);
 
@@ -23,7 +25,12 @@ export class Secrets extends Construct {
 
     this.alphaVantageApiKey = new Secret(this, 'AlphaVantageApiKey', {
       secretName: config.secrets.alphaVantageApiKey(stage),
-      description: 'Alpha Vantage API key for price and fundamentals data',
+      description: 'Alpha Vantage API key for fundamentals data',
+    });
+
+    this.finnhubApiKey = new Secret(this, 'FinnhubApiKey', {
+      secretName: config.secrets.finnhubApiKey(stage),
+      description: 'Finnhub API key for OHLCV, quotes, and earnings calendar',
     });
   }
 }

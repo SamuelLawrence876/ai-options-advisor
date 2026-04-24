@@ -51,7 +51,7 @@ export class OptionsAnalysisStack extends Stack {
       stage,
       bucket: storage.bucket,
       watchlistTable: tables.watchlistTable,
-      alphaVantageApiKey: secrets.alphaVantageApiKey,
+      finnhubApiKey: secrets.finnhubApiKey,
     });
 
     const fetchMarketContext = new FetchMarketContext(this, 'FetchMarketContext', {
@@ -59,7 +59,7 @@ export class OptionsAnalysisStack extends Stack {
       bucket: storage.bucket,
       watchlistTable: tables.watchlistTable,
       flashAlphaApiKey: secrets.flashAlphaApiKey,
-      alphaVantageApiKey: secrets.alphaVantageApiKey,
+      finnhubApiKey: secrets.finnhubApiKey,
     });
 
     const enrichAndScore = new EnrichAndScore(this, 'EnrichAndScore', {
