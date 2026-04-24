@@ -18,8 +18,12 @@ interface YahooChartResponse {
   };
 }
 
+function toYahooSymbol(symbol: string): string {
+  return symbol.replace(/\./g, '-');
+}
+
 export async function fetchYahooOhlcv(symbol: string, range: string): Promise<OhlcvBar[]> {
-  const encoded = encodeURIComponent(symbol);
+  const encoded = encodeURIComponent(toYahooSymbol(symbol));
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encoded}?interval=1d&range=${range}`;
   const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
   const data = (await response.json()) as YahooChartResponse;
