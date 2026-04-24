@@ -2,7 +2,12 @@ import { FundamentalsData, MarketContext, WatchlistItem } from '../../types';
 import { error, info } from '../../utils/logger';
 import { getJson, putJson } from '../../utils/aws/s3';
 import { getSecretValue } from '../../utils/aws/secrets';
-import { daysBetween, fetchAnalystRatings, fetchCompanyOverview } from './alphaVantage';
+import {
+  fetchFinnhubDividendYield,
+  fetchFinnhubPriceTarget,
+  fetchFinnhubRecommendations,
+  fetchFinnhubUpcomingDividend,
+} from '../../utils/clients/finnhub';
 
 interface FetchFundamentalsEvent {
   ticker: WatchlistItem;
@@ -10,55 +15,58 @@ interface FetchFundamentalsEvent {
   marketContext: MarketContext;
 }
 
+function daysBetween(dateStr: string): number {
+  const target = new Date(dateStr);
+  const now = new Date();
+  return Math.round((target.getTime() - now.getTime()) / 86400000);
+}
+
+function dateOffsetDays(base: string, days: number): string {
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFundamentalsEvent> => {
   const bucketName = process.env.BUCKET_NAME!;
-  const alphaVantageArn = process.env.ALPHA_VANTAGE_SECRET_ARN!;
+  const finnhubArn = process.env.FINNHUB_SECRET_ARN!;
 
   const { ticker, date } = event;
   const symbol = ticker.symbol;
 
   info('fetch-fundamentals started', { symbol, date });
 
-  const [apiKey, earningsCalendar] = await Promise.all([
-    getSecretValue(alphaVantageArn),
-    getJson<Record<string, string>>(
-      bucketName,
-      `raw-data/${date}/earnings-calendar.json`,
-    ).catch(err => {
-      error('Failed to read earnings calendar from S3', err as Error);
-      return {} as Record<string, string>;
-    }),
+  const [finnhubKey, earningsCalendar] = await Promise.all([
+    getSecretValue(finnhubArn),
+    getJson<Record<string, string>>(bucketName, `raw-data/${date}/earnings-calendar.json`).catch(
+      err => {
+        error('Failed to read earnings calendar from S3', err as Error);
+        return {} as Record<string, string>;
+      },
+    ),
   ]);
 
   const earningsDate = earningsCalendar[symbol];
   const earningsDte = earningsDate ? daysBetween(earningsDate) : undefined;
 
-  const [overview, ratings] = await Promise.all([
-    fetchCompanyOverview(symbol, apiKey).catch(err => {
-      error(`Company overview failed for ${symbol}`, err as Error);
-      return undefined;
-    }),
-    fetchAnalystRatings(symbol, apiKey).catch(() => undefined),
+  const divFrom = date;
+  const divTo = dateOffsetDays(date, 90);
+
+  const [exDivDate, annualDividendYield, meanPriceTarget, ratings] = await Promise.all([
+    fetchFinnhubUpcomingDividend(symbol, divFrom, divTo, finnhubKey).catch(() => undefined),
+    fetchFinnhubDividendYield(symbol, finnhubKey).catch(() => undefined),
+    fetchFinnhubPriceTarget(symbol, finnhubKey).catch(() => undefined),
+    fetchFinnhubRecommendations(symbol, finnhubKey).catch(() => ({
+      buyCount: 0,
+      holdCount: 0,
+      sellCount: 0,
+    })),
   ]);
 
-  const exDivDate = overview?.ExDividendDate;
-  const exDivDte = exDivDate && exDivDate !== 'None' ? daysBetween(exDivDate) : undefined;
-  const annualDividendYield = overview?.DividendYield
-    ? parseFloat(overview.DividendYield) * 100
-    : undefined;
+  const exDivDte = exDivDate ? daysBetween(exDivDate) : undefined;
 
-  const meanPriceTarget = overview?.AnalystTargetPrice
-    ? parseFloat(overview.AnalystTargetPrice)
-    : undefined;
-
-  const buyCount =
-    parseInt(ratings?.analystRatingsBuy ?? ratings?.buy ?? '0', 10) +
-    parseInt(ratings?.analystRatingsStrongBuy ?? ratings?.strongBuy ?? '0', 10);
-  const sellCount =
-    parseInt(ratings?.analystRatingsSell ?? ratings?.sell ?? '0', 10) +
-    parseInt(ratings?.analystRatingsStrongSell ?? ratings?.strongSell ?? '0', 10);
-  const holdCount = parseInt(ratings?.analystRatingsHold ?? ratings?.hold ?? '0', 10);
-  const totalAnalysts = buyCount + sellCount + holdCount;
+  const { buyCount, holdCount, sellCount } = ratings;
+  const totalAnalysts = buyCount + holdCount + sellCount;
   const analystConsensus =
     totalAnalysts === 0
       ? 'N/A'
@@ -72,7 +80,7 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
     symbol,
     earningsDate,
     earningsDte,
-    exDivDate: exDivDate !== 'None' ? exDivDate : undefined,
+    exDivDate,
     exDivDte,
     annualDividendYield,
     meanPriceTarget,

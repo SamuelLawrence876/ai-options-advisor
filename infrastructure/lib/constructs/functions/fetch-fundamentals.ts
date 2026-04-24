@@ -12,7 +12,7 @@ export interface FetchFundamentalsProps {
   stage: string;
   bucket: IBucket;
   watchlistTable: ITable;
-  alphaVantageApiKey: ISecret;
+  finnhubApiKey: ISecret;
 }
 
 export class FetchFundamentals extends Construct {
@@ -21,12 +21,12 @@ export class FetchFundamentals extends Construct {
   constructor(scope: Construct, id: string, props: FetchFundamentalsProps) {
     super(scope, id);
 
-    const { stage, bucket, watchlistTable, alphaVantageApiKey } = props;
+    const { stage, bucket, watchlistTable, finnhubApiKey } = props;
 
     this.fn = new NodejsFunction(this, 'Function', {
       functionName: addStagePrefix(stage, 'fetch-fundamentals'),
       description:
-        'Fetches earnings dates, dividends, analyst ratings, and short interest per ticker from Alpha Vantage and stores raw JSON to S3',
+        'Fetches earnings dates, dividends, analyst ratings, and price targets per ticker from Finnhub and stores raw JSON to S3',
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
       entry: path.join(__dirname, '../../../../src/functions/fetchFundamentals/index.ts'),
@@ -38,13 +38,13 @@ export class FetchFundamentals extends Construct {
         STAGE: stage,
         BUCKET_NAME: bucket.bucketName,
         WATCHLIST_TABLE: watchlistTable.tableName,
-        ALPHA_VANTAGE_SECRET_ARN: alphaVantageApiKey.secretArn,
+        FINNHUB_SECRET_ARN: finnhubApiKey.secretArn,
       },
       bundling: { minify: true, sourceMap: true },
     });
 
     bucket.grantReadWrite(this.fn);
     watchlistTable.grantReadData(this.fn);
-    alphaVantageApiKey.grantRead(this.fn);
+    finnhubApiKey.grantRead(this.fn);
   }
 }

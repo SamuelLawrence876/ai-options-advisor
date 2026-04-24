@@ -80,3 +80,76 @@ export async function fetchFinnhubEarningsCalendar(
   }
   return result;
 }
+
+interface FinnhubDividendEvent {
+  symbol: string;
+  date: string;
+  amount: number;
+}
+
+interface FinnhubBasicFinancials {
+  metric?: {
+    dividendYieldIndicatedAnnual?: number;
+  };
+}
+
+interface FinnhubPriceTargetResponse {
+  targetMean?: number;
+}
+
+interface FinnhubRecommendationEntry {
+  buy: number;
+  hold: number;
+  sell: number;
+  strongBuy: number;
+  strongSell: number;
+  period: string;
+}
+
+export async function fetchFinnhubUpcomingDividend(
+  symbol: string,
+  fromDate: string,
+  toDate: string,
+  apiKey: string,
+): Promise<string | undefined> {
+  const url = `${BASE_URL}/stock/dividend?symbol=${encodeURIComponent(symbol)}&from=${fromDate}&to=${toDate}&token=${apiKey}`;
+  const response = await fetch(url);
+  const data = (await response.json()) as FinnhubDividendEvent[];
+  return Array.isArray(data) && data.length > 0 ? data[0].date : undefined;
+}
+
+export async function fetchFinnhubDividendYield(
+  symbol: string,
+  apiKey: string,
+): Promise<number | undefined> {
+  const url = `${BASE_URL}/stock/metric?symbol=${encodeURIComponent(symbol)}&metric=all&token=${apiKey}`;
+  const response = await fetch(url);
+  const data = (await response.json()) as FinnhubBasicFinancials;
+  return data?.metric?.dividendYieldIndicatedAnnual;
+}
+
+export async function fetchFinnhubPriceTarget(
+  symbol: string,
+  apiKey: string,
+): Promise<number | undefined> {
+  const url = `${BASE_URL}/stock/price-target?symbol=${encodeURIComponent(symbol)}&token=${apiKey}`;
+  const response = await fetch(url);
+  const data = (await response.json()) as FinnhubPriceTargetResponse;
+  return data?.targetMean ?? undefined;
+}
+
+export async function fetchFinnhubRecommendations(
+  symbol: string,
+  apiKey: string,
+): Promise<{ buyCount: number; holdCount: number; sellCount: number }> {
+  const url = `${BASE_URL}/stock/recommendation?symbol=${encodeURIComponent(symbol)}&token=${apiKey}`;
+  const response = await fetch(url);
+  const data = (await response.json()) as FinnhubRecommendationEntry[];
+  const latest = Array.isArray(data) ? data[0] : undefined;
+  if (!latest) return { buyCount: 0, holdCount: 0, sellCount: 0 };
+  return {
+    buyCount: (latest.buy ?? 0) + (latest.strongBuy ?? 0),
+    holdCount: latest.hold ?? 0,
+    sellCount: (latest.sell ?? 0) + (latest.strongSell ?? 0),
+  };
+}
