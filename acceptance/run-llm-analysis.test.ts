@@ -83,6 +83,7 @@ beforeAll(async () => {
 
 describe('runLlmAnalysis Lambda — Stage 1 (per ticker)', () => {
   let analysis: TickerAnalysis;
+  let stage1StatusCode: number;
 
   beforeAll(async () => {
     const result = await invokeLambda<TickerAnalysis>(names.runLlmAnalysisFn, {
@@ -93,8 +94,12 @@ describe('runLlmAnalysis Lambda — Stage 1 (per ticker)', () => {
       marketContext: marketContextFixture,
     });
 
-    expect(result.statusCode).toBe(200);
+    stage1StatusCode = result.statusCode;
     analysis = result.payload;
+  });
+
+  it('invocation succeeds with status 200', () => {
+    expect(stage1StatusCode).toBe(200);
   });
 
   it('returns a valid recommendation', () => {
@@ -123,10 +128,9 @@ describe('runLlmAnalysis Lambda — Stage 1 (per ticker)', () => {
   });
 
   it('returns numeric ROBP when recommendation is not SKIP', () => {
-    if (analysis.recommendation !== 'SKIP' && analysis.recommendation !== 'WATCH') {
-      expect(typeof analysis.robpAnnualised).toBe('number');
-      expect(analysis.robpAnnualised).toBeGreaterThan(0);
-    }
+    if (analysis.recommendation === 'SKIP' || analysis.recommendation === 'WATCH') return;
+    expect(typeof analysis.robpAnnualised).toBe('number');
+    expect(analysis.robpAnnualised).toBeGreaterThan(0);
   });
 });
 
@@ -149,6 +153,7 @@ describe('runLlmAnalysis Lambda — Stage 2 (portfolio synthesis)', () => {
   ];
 
   let synthesis: PortfolioSynthesis;
+  let stage2StatusCode: number;
 
   beforeAll(async () => {
     const result = await invokeLambda<PortfolioSynthesis>(names.runLlmAnalysisFn, {
@@ -158,8 +163,12 @@ describe('runLlmAnalysis Lambda — Stage 2 (portfolio synthesis)', () => {
       marketContext: marketContextFixture,
     });
 
-    expect(result.statusCode).toBe(200);
+    stage2StatusCode = result.statusCode;
     synthesis = result.payload;
+  });
+
+  it('invocation succeeds with status 200', () => {
+    expect(stage2StatusCode).toBe(200);
   });
 
   it('returns top picks array', () => {

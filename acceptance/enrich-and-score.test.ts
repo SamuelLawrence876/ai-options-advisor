@@ -134,10 +134,9 @@ describe('enrichAndScore Lambda', () => {
 
     const enriched = result.payload;
 
-    if (enriched.suggestedStrategy !== 'SKIP' && enriched.candidateTrade) {
-      expect(enriched.candidateTrade.robpAnnualised).toBeGreaterThan(0);
-      expect(enriched.candidateTrade.bpr).toBeGreaterThan(0);
-      expect(enriched.candidateTrade.maxLoss).toBeGreaterThan(0);
-    }
+    if (enriched.suggestedStrategy === 'SKIP' || !enriched.candidateTrade) return;
+    expect(enriched.candidateTrade.robpAnnualised).toBeGreaterThan(0);
+    expect(enriched.candidateTrade.bpr).toBeGreaterThan(0);
+    expect(enriched.candidateTrade.maxLoss).toBeGreaterThan(0);
   });
 });

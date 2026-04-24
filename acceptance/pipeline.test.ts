@@ -23,7 +23,8 @@ beforeAll(async () => {
 
 describe('pipeline end-to-end', () => {
   it('completes successfully within 20 minutes', async () => {
-    await pollExecution(executionArn, 20 * 60 * 1000);
+    const result = await pollExecution(executionArn, 20 * 60 * 1000);
+    expect(result.status).toBe('SUCCEEDED');
   });
 
   describe('S3 outputs', () => {
@@ -61,8 +62,8 @@ describe('pipeline end-to-end', () => {
       expect(sample).toHaveProperty('suggestedStrategy');
     });
 
-    it('writes the HTML report to S3', async () => {
-      const key = `reports/${TEST_DATE}/full-report.html`;
+    it('writes the markdown report to S3', async () => {
+      const key = `reports/${TEST_DATE}/full-report.md`;
       await expect(objectExists(bucket, key)).resolves.toBe(true);
     });
   });
