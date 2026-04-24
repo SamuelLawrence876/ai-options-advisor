@@ -149,7 +149,8 @@ jobs:
       - name: Run acceptance tests
         run: npm run test:acceptance
         env:
-          API_URL: ${{ steps.outputs.outputs.api-url }}
+          STAGE: ${{ needs.resolve-stage.outputs.stage }}
+          AWS_REGION: us-east-1
 
   # ─────────────────────────────────────────────
   # Destroy the ephemeral stack when the PR closes

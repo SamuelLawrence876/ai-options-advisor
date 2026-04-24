@@ -32,3 +32,4 @@ cdk.context.json
 
 # ESLint cache
 .eslintcache
+reports/

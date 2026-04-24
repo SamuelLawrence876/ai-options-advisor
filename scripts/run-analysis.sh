@@ -14,6 +14,7 @@ STAGE="production"
 DATE="$(date -u +%Y-%m-%d)"
 WAIT=true
 REGION="${AWS_DEFAULT_REGION:-us-east-1}"
+REPORTS_DIR="$(git -C "$(dirname "$0")" rev-parse --show-toplevel 2>/dev/null || echo ".")/reports"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -89,8 +90,22 @@ while true; do
       echo "✓ Analysis complete."
       echo ""
       echo "  Console:  ${CONSOLE_URL}"
-      echo "  Report:   Check your email (${STAGE} SES recipient) or S3:"
-      echo "            aws s3 ls s3://\$(aws s3api list-buckets --query \"Buckets[?contains(Name,'options-analysis')].Name | [0]\" --output text)/reports/${DATE}/"
+      echo ""
+
+      BUCKET=$(aws s3api list-buckets \
+        --query "Buckets[?contains(Name,'options-analysis') && contains(Name,'${STAGE}')].Name | [0]" \
+        --output text)
+      REPORT_KEY="reports/${DATE}/full-report.html"
+      LOCAL_DIR="${REPORTS_DIR}/${DATE}"
+      LOCAL_FILE="${LOCAL_DIR}/full-report.html"
+
+      mkdir -p "${LOCAL_DIR}"
+      if aws s3 cp "s3://${BUCKET}/${REPORT_KEY}" "${LOCAL_FILE}" --region "${REGION}" 2>/dev/null; then
+        echo "  Report downloaded to: ${LOCAL_FILE}"
+      else
+        echo "  Could not download report — check S3 manually:"
+        echo "    s3://${BUCKET}/${REPORT_KEY}"
+      fi
       echo ""
       exit 0
       ;;
