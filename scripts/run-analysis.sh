@@ -95,9 +95,9 @@ while true; do
       BUCKET=$(aws s3api list-buckets \
         --query "Buckets[?contains(Name,'options-analysis') && contains(Name,'${STAGE}')].Name | [0]" \
         --output text)
-      REPORT_KEY="reports/${DATE}/full-report.html"
+      REPORT_KEY="reports/${DATE}/full-report.md"
       LOCAL_DIR="${REPORTS_DIR}/${DATE}"
-      LOCAL_FILE="${LOCAL_DIR}/full-report.html"
+      LOCAL_FILE="${LOCAL_DIR}/full-report.md"
 
       mkdir -p "${LOCAL_DIR}"
       if aws s3 cp "s3://${BUCKET}/${REPORT_KEY}" "${LOCAL_FILE}" --region "${REGION}" 2>/dev/null; then
