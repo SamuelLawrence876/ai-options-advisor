@@ -123,19 +123,19 @@ beforeAll(async () => {
 });
 
 describe('generateReport Lambda', () => {
-  it('writes HTML report to S3 at the expected key', async () => {
-    expect(reportResult.reportKey).toBe(`reports/${TEST_DATE}/full-report.html`);
-    await expect(objectExists(bucket, `reports/${TEST_DATE}/full-report.html`)).resolves.toBe(true);
+  it('writes markdown report to S3 at the expected key', async () => {
+    expect(reportResult.reportKey).toBe(`reports/${TEST_DATE}/full-report.md`);
+    await expect(objectExists(bucket, `reports/${TEST_DATE}/full-report.md`)).resolves.toBe(true);
   });
 
-  it('HTML report contains expected sections', async () => {
-    const html = await getTextObject(bucket, `reports/${TEST_DATE}/full-report.html`);
-    expect(html).toContain('Options Analysis Report');
-    expect(html).toContain('Top Opportunities This Week');
-    expect(html).toContain('Full Watchlist Review');
-    expect(html).toContain('ROBP');
-    expect(html).toContain('AAPL');
-    expect(html).toContain(marketContextFixture.vixRegime);
+  it('markdown report contains expected sections', async () => {
+    const report = await getTextObject(bucket, `reports/${TEST_DATE}/full-report.md`);
+    expect(report).toContain('Options Analysis');
+    expect(report).toContain('Top Opportunities');
+    expect(report).toContain('Full Watchlist');
+    expect(report).toContain('ROBP');
+    expect(report).toContain('AAPL');
+    expect(report).toContain(marketContextFixture.vixRegime);
   });
 
   it('returns synthesis and ticker analyses for pipeline chaining', () => {
