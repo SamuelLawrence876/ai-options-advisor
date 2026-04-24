@@ -1,9 +1,4 @@
-import {
-  InvocationResponse,
-  InvokeCommand,
-  LambdaClient,
-  LogType,
-} from '@aws-sdk/client-lambda';
+import { InvocationResponse, InvokeCommand, LambdaClient, LogType } from '@aws-sdk/client-lambda';
 
 const lambda = new LambdaClient({});
 

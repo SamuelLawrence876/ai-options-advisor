@@ -7,7 +7,7 @@
   "volSurface": [
     { "expiry": "2026-05-16", "strike": 180.0, "iv": 27.2, "delta": -0.28 },
     { "expiry": "2026-05-16", "strike": 185.0, "iv": 25.1, "delta": -0.18 },
-    { "expiry": "2026-05-16", "strike": 190.0, "iv": 31.5, "delta": 0.30 },
+    { "expiry": "2026-05-16", "strike": 190.0, "iv": 31.5, "delta": 0.3 },
     { "expiry": "2026-05-16", "strike": 195.0, "iv": 29.8, "delta": 0.42 }
   ],
   "candidateStrikes": [
@@ -21,7 +21,7 @@
       "vega": 0.18,
       "bid": 1.85,
       "ask": 1.95,
-      "mid": 1.90,
+      "mid": 1.9,
       "openInterest": 4820,
       "volume": 312
     },
@@ -30,11 +30,11 @@
       "dte": 28,
       "strike": 190.0,
       "optionType": "call",
-      "delta": 0.30,
+      "delta": 0.3,
       "theta": 0.058,
       "vega": 0.21,
-      "bid": 2.10,
-      "ask": 2.20,
+      "bid": 2.1,
+      "ask": 2.2,
       "mid": 2.15,
       "openInterest": 6140,
       "volume": 521

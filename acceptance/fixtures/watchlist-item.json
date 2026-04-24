@@ -2,7 +2,7 @@
   "symbol": "AAPL",
   "strategyPref": "COVERED_CALL",
   "sharesHeld": 100,
-  "costBasis": 165.00,
+  "costBasis": 165.0,
   "targetYieldPct": 8,
   "minDte": 21,
   "maxDte": 45,

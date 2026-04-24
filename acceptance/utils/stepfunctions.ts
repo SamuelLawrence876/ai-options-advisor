@@ -21,9 +21,7 @@ export async function startExecution(
   input: Record<string, unknown>,
   name?: string,
 ): Promise<string> {
-  const execName =
-    name ??
-    `acceptance-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const execName = name ?? `acceptance-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
   const result = await sfn.send(
     new StartExecutionCommand({
@@ -71,5 +69,5 @@ export async function pollExecution(
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }

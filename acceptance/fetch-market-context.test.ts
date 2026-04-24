@@ -53,12 +53,11 @@ describe('fetchMarketContext Lambda', () => {
     const key = `raw-data/${TEST_DATE}/market-context.json`;
     const ctx = await getJsonObject<MarketContext>(bucket, key);
 
-    const result = await invokeLambda<{ tickers: WatchlistItem[] }>(
-      names.fetchMarketContextFn,
-      { date: TEST_DATE },
-    );
+    const result = await invokeLambda<{ tickers: WatchlistItem[] }>(names.fetchMarketContextFn, {
+      date: TEST_DATE,
+    });
 
-    result.payload.tickers.forEach((ticker) => {
+    result.payload.tickers.forEach(ticker => {
       expect(ticker.active).toBe(true);
       expect(typeof ticker.symbol).toBe('string');
       expect(ticker.symbol.length).toBeGreaterThan(0);

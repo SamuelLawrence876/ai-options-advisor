@@ -1,4 +1,10 @@
-import { OhlcvBar, StrategyRecommendation, TrendClassification } from '../types';
+import {
+  MarketTrend,
+  OhlcvBar,
+  StrategyRecommendation,
+  TrendClassification,
+  VixRegime,
+} from '../types';
 
 export function computeMovingAverage(closes: number[], period: number): number {
   if (closes.length < period) return closes[closes.length - 1] ?? 0;
@@ -19,11 +25,7 @@ export function computeAtr(bars: OhlcvBar[], period = 14): number {
   return recent.reduce((sum, v) => sum + v, 0) / recent.length;
 }
 
-export function classifyTrend(
-  price: number,
-  ma20: number,
-  ma50: number,
-): TrendClassification {
+export function classifyTrend(price: number, ma20: number, ma50: number): TrendClassification {
   if (price > ma50 && ma20 > ma50) return 'BULLISH';
   if (price < ma50 && ma20 < ma50) return 'BEARISH';
   return 'NEUTRAL';
@@ -36,10 +38,7 @@ export interface MaxLossParams {
   premiumCollected: number;
 }
 
-export function computeMaxLoss(
-  strategy: StrategyRecommendation,
-  params: MaxLossParams,
-): number {
+export function computeMaxLoss(strategy: StrategyRecommendation, params: MaxLossParams): number {
   const { costBasis, spreadWidth, strike, premiumCollected } = params;
   switch (strategy) {
     case 'COVERED_CALL':
@@ -71,21 +70,26 @@ export function computeBpr(
   }
 }
 
-export function computeRobp(
-  premiumCollected: number,
-  bpr: number,
-  dte: number,
-): number {
+export function computeRobp(premiumCollected: number, bpr: number, dte: number): number {
   if (bpr === 0) return 0;
   const robp = premiumCollected / bpr;
   return robp * (365 / dte) * 100;
 }
 
-export function computeAnnualisedYield(
-  premium: number,
-  strike: number,
-  dte: number,
-): number {
+export function computeAnnualisedYield(premium: number, strike: number, dte: number): number {
   if (strike === 0 || dte === 0) return 0;
   return (premium / (strike * 100)) * (365 / dte) * 100;
+}
+
+export function classifyVixRegime(vix: number): VixRegime {
+  if (vix < 15) return 'LOW';
+  if (vix < 25) return 'NORMAL';
+  if (vix < 35) return 'ELEVATED';
+  return 'EXTREME';
+}
+
+export function classifyMarketTrend(price: number, ma20: number, ma50: number): MarketTrend {
+  if (price > ma50 && ma20 > ma50) return 'BULL';
+  if (price < ma50 && ma20 < ma50) return 'BEAR';
+  return 'NEUTRAL';
 }

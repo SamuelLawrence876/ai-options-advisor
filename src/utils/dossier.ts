@@ -96,7 +96,7 @@ export function formatDossier(
   if (humanContext.length === 0) {
     lines.push('None this cycle');
   } else {
-    humanContext.forEach((entry) => {
+    humanContext.forEach(entry => {
       lines.push(`[${entry.timestamp.slice(0, 10)} | ${entry.pk}] ${entry.context}`);
     });
   }

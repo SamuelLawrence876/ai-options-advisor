@@ -1,11 +1,7 @@
 import { getBucketName, getRegion, getStage, resourceNames } from './utils/config';
 import { getItem, scanTable } from './utils/dynamodb';
 import { getJsonObject, listObjects, objectExists } from './utils/s3';
-import {
-  getStateMachineArn,
-  pollExecution,
-  startExecution,
-} from './utils/stepfunctions';
+import { getStateMachineArn, pollExecution, startExecution } from './utils/stepfunctions';
 
 jest.setTimeout(25 * 60 * 1000);
 
@@ -44,7 +40,7 @@ describe('pipeline end-to-end', () => {
 
     it('writes raw data for every active ticker', async () => {
       const keys = await listObjects(bucket, `raw-data/${TEST_DATE}/`);
-      const prefixes = new Set(keys.map((k) => k.split('/')[2]));
+      const prefixes = new Set(keys.map(k => k.split('/')[2]));
       expect(prefixes.size).toBeGreaterThan(0);
 
       for (const symbol of prefixes) {
@@ -59,10 +55,7 @@ describe('pipeline end-to-end', () => {
       const enrichedKeys = await listObjects(bucket, `enriched/${TEST_DATE}/`);
       expect(enrichedKeys.length).toBeGreaterThan(0);
 
-      const sample = await getJsonObject<Record<string, unknown>>(
-        bucket,
-        enrichedKeys[0],
-      );
+      const sample = await getJsonObject<Record<string, unknown>>(bucket, enrichedKeys[0]);
       expect(sample).toHaveProperty('vrp');
       expect(sample).toHaveProperty('ivRankSignal');
       expect(sample).toHaveProperty('suggestedStrategy');
@@ -87,7 +80,7 @@ describe('pipeline end-to-end', () => {
 
     it('writes IV history snapshots for each ticker', async () => {
       const snapshots = await scanTable<Record<string, unknown>>(names.ivHistoryTable);
-      const forToday = snapshots.filter((s) => s.date === TEST_DATE);
+      const forToday = snapshots.filter(s => s.date === TEST_DATE);
       expect(forToday.length).toBeGreaterThan(0);
 
       const sample = forToday[0];

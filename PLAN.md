@@ -169,6 +169,7 @@ flowchart TD
 Set up the monorepo package following existing patterns. Single CDK stack to start: `ThetaStack`.
 
 Constructs to scaffold:
+
 - `StorageConstruct` — S3 bucket + DynamoDB tables
 - `SchedulerConstruct` — EventBridge cron rule (weekly, Monday 06:00 UTC — before US pre-market)
 - Placeholder Step Functions state machine
@@ -260,6 +261,7 @@ Raw data is always preserved. If a run fails midway, you can reprocess from S3 w
 Single Lambda. Input: ticker symbol. Output: raw JSON to S3.
 
 Data to fetch per ticker:
+
 - IV rank + IV percentile
 - Current IV (30d)
 - Historical vol (30d)
@@ -283,6 +285,7 @@ API budget note: FlashAlpha free tier is 5 calls/day. For a watchlist larger tha
 Fetches event and sentiment data. Most critical inputs.
 
 **Earnings**
+
 - Next earnings date
 - Days until earnings (DTE to earnings)
 - Historical earnings move (average % move over last 4 prints) — useful for contextualising IV
@@ -290,6 +293,7 @@ Fetches event and sentiment data. Most critical inputs.
 Source: Alpha Vantage earnings calendar endpoint. yfinance as fallback.
 
 **Dividends**
+
 - Next ex-dividend date
 - Days until ex-div
 - Annual dividend yield
@@ -297,12 +301,14 @@ Source: Alpha Vantage earnings calendar endpoint. yfinance as fallback.
 Source: Alpha Vantage or yfinance.
 
 **Short Interest**
+
 - Short interest as % of float
 - Days to cover
 
 Source: Quandl FINRA short interest (free, 2-day lag). Acceptable for weekly cadence.
 
 **Analyst Ratings**
+
 - Consensus rating
 - Mean price target
 - Number of recent upgrades/downgrades (last 30 days)
@@ -311,6 +317,7 @@ Source: Quandl FINRA short interest (free, 2-day lag). Acceptable for weekly cad
 Source: Alpha Vantage analyst ratings or FMP (Financial Modelling Prep — free tier available).
 
 **Unusual Options Activity Flag**
+
 - Boolean: has there been unusual options volume in the last 5 days?
 - Direction: call-biased or put-biased?
 
@@ -321,9 +328,11 @@ Source: Unusual Whales API (paid) or manual flag via human context table for now
 Fetches price history and computes technical signals. This Lambda does more computation than the others.
 
 Data to fetch:
+
 - Daily OHLCV for past 252 trading days (1 year)
 
 Data to compute:
+
 - Current price
 - 52-week high and low
 - Distance from 52-week high (%)
@@ -331,6 +340,7 @@ Data to compute:
 - Trend classification: BULLISH / NEUTRAL / BEARISH
 
 Trend classification logic:
+
 ```
 Price > 50d MA and 20d MA > 50d MA → BULLISH
 Price < 50d MA and 20d MA < 50d MA → BEARISH
@@ -347,6 +357,7 @@ Source: Alpha Vantage daily adjusted (free tier: 25 calls/day, 500/month — suf
 Runs once per cycle, not per ticker. Fetches macro and regime data.
 
 Data to collect:
+
 - VIX current level
 - VIX 20-day average (is VIX elevated vs its recent baseline?)
 - VIX regime classification: LOW (<15) / NORMAL (15–25) / ELEVATED (25–35) / EXTREME (>35)
@@ -355,6 +366,7 @@ Data to collect:
 - Market trend classification: BULL / NEUTRAL / BEAR
 
 Sector ETF IV (per ticker's sector):
+
 - XLK (tech), XLF (financials), XLE (energy), XLV (healthcare), XLY (consumer disc), XLP (consumer staples), XLI (industrials), XLB (materials), XLU (utilities), XLRE (real estate)
 - Fetch current IV for the relevant sector ETF for each ticker in your watchlist
 
@@ -372,6 +384,7 @@ Input: all raw JSON files from S3 for a given ticker + date.
 Output: enriched signal object written to `enriched/{date}/{ticker}.json`.
 
 **Vol signals**
+
 ```
 vrp = current_iv - hv_30d
 iv_rank_signal = iv_rank >= 50 ? "SELL_ENVIRONMENT" : "SKIP"
@@ -379,6 +392,7 @@ iv_vs_sector = current_iv vs sector_etf_iv (above/below/inline)
 ```
 
 **Event flags**
+
 ```
 earnings_in_window = earnings_dte <= target_dte
 earnings_proximity = earnings_dte < 14 ? "DANGER" : earnings_dte < 21 ? "CAUTION" : "CLEAR"
@@ -386,6 +400,7 @@ exdiv_in_window = exdiv_dte <= target_dte
 ```
 
 **Technical signals**
+
 ```
 near_52w_high = distance_from_high < 5% ? true : false
 atr_pct = atr / price * 100
@@ -393,11 +408,13 @@ premium_covers_atr = selected_premium > atr ? true : false
 ```
 
 **Liquidity check**
+
 ```
 liquidity_ok = open_interest > 500 AND spread_pct < 10%
 ```
 
 **First-pass strategy suggestion**
+
 ```
 if trend == BULLISH and iv_rank >= 50 and earnings_clear → CSP or PUT_CREDIT_SPREAD
 if trend == NEUTRAL and iv_rank >= 50 and earnings_clear → COVERED_CALL
@@ -408,11 +425,13 @@ if earnings_in_window → SKIP (override everything)
 
 **Candidate strike selection**
 For each viable strategy, compute the specific strike(s) the LLM should evaluate:
+
 - Covered call: closest strike above current price with delta 0.25–0.35
 - Put credit spread: short strike at delta 0.25–0.30, long strike 5–10 points below
 - CSP: strike at delta 0.25–0.30
 
 Annualised yield per candidate:
+
 ```
 annualised_yield = (premium / (strike * 100)) * (365 / dte) * 100
 ```
@@ -538,7 +557,7 @@ One Bedrock call per ticker. Ask Claude to return structured JSON:
   "symbol": "AAPL",
   "recommendation": "COVERED_CALL | PUT_CREDIT_SPREAD | CSP | IRON_CONDOR | SKIP | WATCH",
   "confidence": "HIGH | MEDIUM | LOW",
-  "adjusted_strike": 197.50,
+  "adjusted_strike": 197.5,
   "adjusted_expiry": "2026-05-16",
   "reasoning": "2-3 sentence plain English explanation",
   "risks": ["risk 1", "risk 2", "risk 3"],
@@ -553,6 +572,7 @@ One Bedrock call per ticker. Ask Claude to return structured JSON:
 **Stage 2 — Portfolio synthesis call**
 
 One Bedrock call with all per-ticker results + macro context. Ask Claude to:
+
 - Rank the top 3–5 opportunities by ROBP (annualised) — not raw yield
 - Note where ROBP ranking differs materially from yield ranking, and why that matters
 - Flag any sector concentration (>2 positions in the same sector)
@@ -563,6 +583,7 @@ One Bedrock call with all per-ticker results + macro context. Ask Claude to:
 ### 4.4 — Human Context Injection
 
 Before Stage 1 runs, the Lambda checks the Human Context DynamoDB table for any entries where:
+
 - PK matches the ticker being analysed, OR PK is "GLOBAL"
 - AND the entry hasn't expired
 
@@ -579,12 +600,14 @@ Matching entries are appended to the ticker dossier in the HUMAN CONTEXT section
 Report structure:
 
 **Header**
+
 - Report date
 - Market regime banner (colour coded — green/amber/red based on VIX regime + market trend)
 - One-line executive summary
 
 **Top Opportunities This Week**
 For each top pick (ranked by ROBP):
+
 - Ticker + company name
 - Recommended trade structure in plain English ("Sell the MSFT $415/$410 put spread, 28 DTE, collect $1.20")
 - Max loss + buying power required
@@ -597,6 +620,7 @@ For each top pick (ranked by ROBP):
 Table format — every ticker with: recommendation, confidence, ann. yield, ROBP (ann.), max loss, buying power, one-line rationale, key flag if any.
 
 **Flags & Warnings**
+
 - Upcoming earnings on any watchlist names (next 14 days)
 - Any SKIP recommendations with explanation of what needs to change
 - Sector concentration warnings
@@ -677,6 +701,7 @@ Also wire up a manual trigger — an SNS topic or Lambda URL — so you can kick
 ## Build Order
 
 ### Week 1 — Storage & Config
+
 - CDK stack scaffold (`ThetaStack`)
 - DynamoDB tables + S3 bucket
 - Watchlist seeded with 5–10 tickers
@@ -684,6 +709,7 @@ Also wire up a manual trigger — an SNS topic or Lambda URL — so you can kick
 - Alpha Vantage account + API key in Secrets Manager
 
 ### Week 2 — Data Collection
+
 - `fetch-options-data` Lambda working, storing to S3
 - `fetch-fundamentals` Lambda working, storing to S3
 - `fetch-technicals` Lambda working, storing to S3
@@ -691,12 +717,14 @@ Also wire up a manual trigger — an SNS topic or Lambda URL — so you can kick
 - All four testable independently via manual invoke
 
 ### Week 3 — Enrichment + LLM
+
 - `enrich-and-score` Lambda working end to end for a single ticker
 - System prompt and ticker template drafted in S3
 - `run-llm-analysis` Stage 1 working for a single ticker
 - Validate output JSON structure including ROBP fields
 
 ### Week 4 — Orchestration & Report
+
 - Stage 2 portfolio synthesis working
 - `generate-report` Lambda producing clean HTML
 - SES delivery working
@@ -704,6 +732,7 @@ Also wire up a manual trigger — an SNS topic or Lambda URL — so you can kick
 - EventBridge schedule active
 
 ### Week 5 — Polish
+
 - Human context injection working (DynamoDB → dossier)
 - Error handling and partial failure logic
 - IV history table being populated each run
@@ -714,13 +743,13 @@ Also wire up a manual trigger — an SNS topic or Lambda URL — so you can kick
 
 ## API Accounts Needed
 
-| Provider | Purpose | Cost |
-|---|---|---|
-| FlashAlpha | IV rank, Greeks, vol surface, key levels | Free (5/day) → Growth tier if >5 tickers |
+| Provider      | Purpose                                        | Cost                                                |
+| ------------- | ---------------------------------------------- | --------------------------------------------------- |
+| FlashAlpha    | IV rank, Greeks, vol surface, key levels       | Free (5/day) → Growth tier if >5 tickers            |
 | Alpha Vantage | Price history, fundamentals, earnings calendar | Free tier (25 req/day) — sufficient for ~15 tickers |
-| ThetaData | Fallback / alternative options data | $25/mo if needed |
-| AWS SES | Email delivery | Near-free at this volume |
-| AWS Bedrock | Claude via API | Pay per token — negligible at weekly cadence |
+| ThetaData     | Fallback / alternative options data            | $25/mo if needed                                    |
+| AWS SES       | Email delivery                                 | Near-free at this volume                            |
+| AWS Bedrock   | Claude via API                                 | Pay per token — negligible at weekly cadence        |
 
 ---
 

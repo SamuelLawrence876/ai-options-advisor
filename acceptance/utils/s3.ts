@@ -43,8 +43,6 @@ export async function putJsonObject(bucket: string, key: string, data: unknown):
 }
 
 export async function listObjects(bucket: string, prefix: string): Promise<string[]> {
-  const result = await s3.send(
-    new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix }),
-  );
-  return (result.Contents ?? []).map((obj) => obj.Key!).filter(Boolean);
+  const result = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix }));
+  return (result.Contents ?? []).map(obj => obj.Key!).filter(Boolean);
 }

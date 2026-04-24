@@ -5,14 +5,14 @@ import {
   QueryCommand,
   ScanCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { HumanContextEntry, IvSnapshot, ReportMetadata, WatchlistItem } from '../types';
+import { HumanContextEntry, IvSnapshot, ReportMetadata, WatchlistItem } from '../../types';
 
 const client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
 export async function getActiveWatchlist(tableName: string): Promise<WatchlistItem[]> {
   const result = await client.send(new ScanCommand({ TableName: tableName }));
   const items = (result.Items ?? []) as WatchlistItem[];
-  return items.filter((item) => item.active);
+  return items.filter(item => item.active);
 }
 
 export async function getHumanContext(
@@ -43,7 +43,7 @@ export async function getHumanContext(
     ...((globalResult.Items ?? []) as HumanContextEntry[]),
   ];
 
-  return all.filter((entry) => !entry.expires || entry.expires >= now);
+  return all.filter(entry => !entry.expires || entry.expires >= now);
 }
 
 export async function putIvSnapshot(tableName: string, snapshot: IvSnapshot): Promise<void> {

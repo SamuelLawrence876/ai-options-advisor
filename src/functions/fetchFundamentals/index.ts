@@ -1,99 +1,18 @@
 import { FundamentalsData, MarketContext, WatchlistItem } from '../../types';
 import { error, info } from '../../utils/logger';
-import { putJson } from '../../utils/s3';
-import { getSecretValue } from '../../utils/secrets';
+import { putJson } from '../../utils/aws/s3';
+import { getSecretValue } from '../../utils/aws/secrets';
+import {
+  daysBetween,
+  fetchAnalystRatings,
+  fetchCompanyOverview,
+  fetchEarningsCalendar,
+} from './alphaVantage';
 
 interface FetchFundamentalsEvent {
   ticker: WatchlistItem;
   date: string;
   marketContext: MarketContext;
-}
-
-interface AlphaVantageEarningsCalendar {
-  symbol: string;
-  name: string;
-  reportDate: string;
-  fiscalDateEnding: string;
-  estimate: string;
-  currency: string;
-}
-
-interface AlphaVantageAnalystRatings {
-  symbol: string;
-  targetPrice?: string;
-  strongBuy?: string;
-  buy?: string;
-  hold?: string;
-  sell?: string;
-  strongSell?: string;
-  analystRatingsBuy?: string;
-  analystRatingsSell?: string;
-  analystRatingsHold?: string;
-  analystRatingsStrongSell?: string;
-  analystRatingsStrongBuy?: string;
-}
-
-interface AlphaVantageOverview {
-  Symbol: string;
-  DividendDate?: string;
-  ExDividendDate?: string;
-  DividendYield?: string;
-  ForwardPE?: string;
-  AnalystTargetPrice?: string;
-  '52WeekHigh'?: string;
-  '52WeekLow'?: string;
-}
-
-function daysBetween(dateStr: string): number {
-  const target = new Date(dateStr);
-  const now = new Date();
-  return Math.round((target.getTime() - now.getTime()) / 86400000);
-}
-
-async function fetchEarningsCalendar(
-  symbol: string,
-  apiKey: string,
-): Promise<AlphaVantageEarningsCalendar | undefined> {
-  const url = `https://www.alphavantage.co/query?function=EARNINGS_CALENDAR&symbol=${symbol}&horizon=3month&apikey=${apiKey}`;
-  const response = await fetch(url);
-  const text = await response.text();
-  const lines = text.trim().split('\n').slice(1);
-  for (const line of lines) {
-    const parts = line.split(',');
-    if (parts[0] === symbol && parts.length >= 4) {
-      return {
-        symbol: parts[0],
-        name: parts[1],
-        reportDate: parts[2],
-        fiscalDateEnding: parts[3],
-        estimate: parts[4] ?? '',
-        currency: parts[5] ?? 'USD',
-      };
-    }
-  }
-  return undefined;
-}
-
-async function fetchCompanyOverview(
-  symbol: string,
-  apiKey: string,
-): Promise<AlphaVantageOverview> {
-  const url = `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${symbol}&apikey=${apiKey}`;
-  const response = await fetch(url);
-  return response.json() as Promise<AlphaVantageOverview>;
-}
-
-async function fetchAnalystRatings(
-  symbol: string,
-  apiKey: string,
-): Promise<AlphaVantageAnalystRatings | undefined> {
-  const url = `https://www.alphavantage.co/query?function=ANALYTICS_FIXED_WINDOW&SYMBOLS=${symbol}&RANGE=1month&INTERVAL=WEEKLY&OHLC=close&CALCULATIONS=MEAN,STDDEV&apikey=${apiKey}`;
-  try {
-    const response = await fetch(url);
-    return response.json() as Promise<AlphaVantageAnalystRatings>;
-  } catch {
-    return undefined;
-  }
 }
 
 export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFundamentalsEvent> => {
@@ -108,13 +27,13 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
   const apiKey = await getSecretValue(alphaVantageArn);
 
   const [earningsEntry, overview, ratings] = await Promise.all([
-    fetchEarningsCalendar(symbol, apiKey).catch((err) => {
+    fetchEarningsCalendar(symbol, apiKey).catch(err => {
       error(`Earnings calendar failed for ${symbol}`, err as Error);
       return undefined;
     }),
-    fetchCompanyOverview(symbol, apiKey).catch((err) => {
+    fetchCompanyOverview(symbol, apiKey).catch(err => {
       error(`Company overview failed for ${symbol}`, err as Error);
-      return undefined as unknown as AlphaVantageOverview;
+      return undefined;
     }),
     fetchAnalystRatings(symbol, apiKey).catch(() => undefined),
   ]);

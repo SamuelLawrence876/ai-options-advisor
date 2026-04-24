@@ -23,8 +23,16 @@ beforeAll(async () => {
 
   await Promise.all([
     putJsonObject(bucket, `raw-data/${TEST_DATE}/${ticker.symbol}/options.json`, optionsFixture),
-    putJsonObject(bucket, `raw-data/${TEST_DATE}/${ticker.symbol}/fundamentals.json`, fundamentalsFixture),
-    putJsonObject(bucket, `raw-data/${TEST_DATE}/${ticker.symbol}/technicals.json`, technicalsFixture),
+    putJsonObject(
+      bucket,
+      `raw-data/${TEST_DATE}/${ticker.symbol}/fundamentals.json`,
+      fundamentalsFixture,
+    ),
+    putJsonObject(
+      bucket,
+      `raw-data/${TEST_DATE}/${ticker.symbol}/technicals.json`,
+      technicalsFixture,
+    ),
   ]);
 });
 

@@ -43,11 +43,11 @@ const fixtureEnrichedTicker: EnrichedTicker = {
     expiry: '2026-05-16',
     dte: 28,
     strike: 190.0,
-    delta: 0.30,
+    delta: 0.3,
     theta: 0.058,
     premiumMid: 2.15,
-    bid: 2.10,
-    ask: 2.20,
+    bid: 2.1,
+    ask: 2.2,
     spreadPct: 4.5,
     openInterest: 6140,
     maxLoss: 16285,
@@ -67,8 +67,16 @@ beforeAll(async () => {
 
   await Promise.all([
     putJsonObject(bucket, `raw-data/${TEST_DATE}/${ticker.symbol}/options.json`, optionsFixture),
-    putJsonObject(bucket, `raw-data/${TEST_DATE}/${ticker.symbol}/fundamentals.json`, fundamentalsFixture),
-    putJsonObject(bucket, `raw-data/${TEST_DATE}/${ticker.symbol}/technicals.json`, technicalsFixture),
+    putJsonObject(
+      bucket,
+      `raw-data/${TEST_DATE}/${ticker.symbol}/fundamentals.json`,
+      fundamentalsFixture,
+    ),
+    putJsonObject(
+      bucket,
+      `raw-data/${TEST_DATE}/${ticker.symbol}/technicals.json`,
+      technicalsFixture,
+    ),
     putJsonObject(bucket, `enriched/${TEST_DATE}/${ticker.symbol}.json`, fixtureEnrichedTicker),
   ]);
 });
@@ -160,7 +168,7 @@ describe('runLlmAnalysis Lambda — Stage 2 (portfolio synthesis)', () => {
   });
 
   it('each top pick has required fields', () => {
-    synthesis.topPicks.forEach((pick) => {
+    synthesis.topPicks.forEach(pick => {
       expect(typeof pick.symbol).toBe('string');
       expect(typeof pick.tradeDescription).toBe('string');
       expect(pick.tradeDescription.length).toBeGreaterThan(10);

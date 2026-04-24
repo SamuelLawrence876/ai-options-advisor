@@ -6,7 +6,13 @@ import watchlistItemFixture from './fixtures/watchlist-item.json';
 import { getBucketName, getRegion, getStage, resourceNames } from './utils/config';
 import { invokeLambda } from './utils/lambda';
 import { objectExists, getTextObject } from './utils/s3';
-import { EnrichedTicker, MarketContext, PortfolioSynthesis, TickerAnalysis, WatchlistItem } from '../src/types';
+import {
+  EnrichedTicker,
+  MarketContext,
+  PortfolioSynthesis,
+  TickerAnalysis,
+  WatchlistItem,
+} from '../src/types';
 
 jest.setTimeout(60000);
 
@@ -17,7 +23,11 @@ const names = resourceNames(stage);
 const ticker = watchlistItemFixture as WatchlistItem;
 
 let bucket: string;
-let reportResult: { reportKey: string; synthesis: PortfolioSynthesis; tickerAnalyses: TickerAnalysis[] };
+let reportResult: {
+  reportKey: string;
+  synthesis: PortfolioSynthesis;
+  tickerAnalyses: TickerAnalysis[];
+};
 
 const fixtureAnalysis: TickerAnalysis = {
   symbol: 'AAPL',
@@ -49,10 +59,12 @@ const fixtureSynthesis: PortfolioSynthesis = {
       risks: ['Near 52w high', 'Ex-dividend in 11 days'],
     },
   ],
-  executiveSummary: 'Normal VIX environment with bullish market trend. AAPL offers the best ROBP this week with IV rank at 62 and clear earnings window.',
+  executiveSummary:
+    'Normal VIX environment with bullish market trend. AAPL offers the best ROBP this week with IV rank at 62 and clear earnings window.',
   sectorConcentrationWarnings: [],
   correlatedRiskWarnings: [],
-  macroNote: 'VIX at 18.5, NORMAL regime. Good week for premium selling. SPY and QQQ both in bullish trend.',
+  macroNote:
+    'VIX at 18.5, NORMAL regime. Good week for premium selling. SPY and QQQ both in bullish trend.',
   robpVsYieldDivergences: [],
 };
 
@@ -75,11 +87,11 @@ const fixtureEnrichedTicker: EnrichedTicker = {
     expiry: '2026-05-16',
     dte: 28,
     strike: 190.0,
-    delta: 0.30,
+    delta: 0.3,
     theta: 0.058,
     premiumMid: 2.15,
-    bid: 2.10,
-    ask: 2.20,
+    bid: 2.1,
+    ask: 2.2,
     spreadPct: 4.5,
     openInterest: 6140,
     maxLoss: 16285,

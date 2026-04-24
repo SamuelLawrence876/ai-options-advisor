@@ -134,7 +134,8 @@ export class PipelineStateMachine extends Construct {
     });
 
     const enrichFailedPass = new Pass(this, 'TickerEnrichFailed', {
-      comment: 'Enrich failure — produce a SKIP enrichment so downstream Map states have the expected shape',
+      comment:
+        'Enrich failure — produce a SKIP enrichment so downstream Map states have the expected shape',
       parameters: {
         enriched: {
           'ticker.$': '$.ticker',
@@ -186,7 +187,8 @@ export class PipelineStateMachine extends Construct {
     });
 
     const llmStage1FailedPass = new Pass(this, 'TickerLlmFailed', {
-      comment: 'LLM failure — produce a SKIP analysis so collectAnalyses [*].analysis has an entry for every item',
+      comment:
+        'LLM failure — produce a SKIP analysis so collectAnalyses [*].analysis has an entry for every item',
       parameters: {
         analysis: {
           'symbol.$': '$.ticker.symbol',

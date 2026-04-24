@@ -17,8 +17,6 @@ export async function scanTable<T>(tableName: string): Promise<T[]> {
 }
 
 export async function countItems(tableName: string): Promise<number> {
-  const result = await client.send(
-    new ScanCommand({ TableName: tableName, Select: 'COUNT' }),
-  );
+  const result = await client.send(new ScanCommand({ TableName: tableName, Select: 'COUNT' }));
   return result.Count ?? 0;
 }
