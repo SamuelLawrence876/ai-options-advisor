@@ -8,7 +8,7 @@ import {
   TickerAnalysis,
 } from '../../types';
 import { putIvSnapshot, putReportMetadata } from '../../utils/dynamodb';
-import { info } from '../../utils/logger';
+import { error, info } from '../../utils/logger';
 import { getPresignedUrl } from '../../utils/s3';
 
 const ses = new SESClient({});
@@ -89,12 +89,17 @@ export const handler = async (event: DeliverReportEvent): Promise<void> => {
   const presignedUrl = await getPresignedUrl(bucketName, reportKey, 7 * 24 * 3600);
 
   const emailBody = buildEmailBody(synthesis, tickerAnalyses, date, presignedUrl, marketContext);
-  await sendEmail(
-    senderEmail,
-    recipientEmail,
-    `Options Analysis — ${date} — ${synthesis.topPicks.length} top picks`,
-    emailBody,
-  );
+  try {
+    await sendEmail(
+      senderEmail,
+      recipientEmail,
+      `Options Analysis — ${date} — ${synthesis.topPicks.length} top picks`,
+      emailBody,
+    );
+    info('deliver-report email sent', { recipientEmail });
+  } catch (err) {
+    error('deliver-report email failed — report still available in S3', err as Error);
+  }
 
   const reportMetadata: ReportMetadata = {
     reportDate: date,
@@ -105,15 +110,17 @@ export const handler = async (event: DeliverReportEvent): Promise<void> => {
   };
   await putReportMetadata(reportsTable, reportMetadata);
 
-  const ivSnapshots: IvSnapshot[] = enrichedTickers.map((e) => ({
-    symbol: e.ticker.symbol,
-    date,
-    iv30d: e.rawOptions.iv30d,
-    ivRank: e.rawOptions.ivRank,
-    ivPercentile: e.rawOptions.ivPercentile,
-    hv30d: e.rawOptions.hv30d,
-    vrp: e.vrp,
-  }));
+  const ivSnapshots: IvSnapshot[] = enrichedTickers
+    .filter((e) => e.rawOptions != null)
+    .map((e) => ({
+      symbol: e.ticker.symbol,
+      date,
+      iv30d: e.rawOptions.iv30d,
+      ivRank: e.rawOptions.ivRank,
+      ivPercentile: e.rawOptions.ivPercentile,
+      hv30d: e.rawOptions.hv30d,
+      vrp: e.vrp,
+    }));
 
   await Promise.all(ivSnapshots.map((snapshot) => putIvSnapshot(ivHistoryTable, snapshot)));
 

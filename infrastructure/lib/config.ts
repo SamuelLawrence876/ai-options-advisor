@@ -8,7 +8,7 @@ export const config = {
   },
 
   email: {
-    senderEmail: 'noreply@options-advisor.example.com',
+    senderEmail: 'samuel_lawrence@outlook.com',
     recipientEmail: 'samuel_lawrence@outlook.com',
   },
 } as const;

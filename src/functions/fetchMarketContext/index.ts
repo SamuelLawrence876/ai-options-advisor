@@ -29,25 +29,37 @@ interface FetchMarketContextResult {
   tickers: WatchlistItem[];
 }
 
-async function fetchAlphaVantageDailyOhlcv(
-  symbol: string,
-  apiKey: string,
-): Promise<OhlcvBar[]> {
-  const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${symbol}&outputsize=compact&apikey=${apiKey}`;
-  const response = await fetch(url);
-  const data = (await response.json()) as Record<string, unknown>;
-  const series = data['Time Series (Daily)'] as Record<string, Record<string, string>> | undefined;
-  if (!series) throw new Error(`No daily data for ${symbol}: ${JSON.stringify(data)}`);
+interface YahooChartResponse {
+  chart: {
+    result?: Array<{
+      timestamp: number[];
+      indicators: { quote: Array<{ open: (number | null)[]; high: (number | null)[]; low: (number | null)[]; close: (number | null)[]; volume: (number | null)[] }> };
+    }>;
+    error?: unknown;
+  };
+}
 
-  return Object.entries(series)
-    .map(([date, bar]) => ({
-      date,
-      open: parseFloat(bar['1. open']),
-      high: parseFloat(bar['2. high']),
-      low: parseFloat(bar['3. low']),
-      close: parseFloat(bar['5. adjusted close']),
-      volume: parseFloat(bar['6. volume']),
+async function fetchYahooOhlcv(symbol: string): Promise<OhlcvBar[]> {
+  const encoded = encodeURIComponent(symbol);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encoded}?interval=1d&range=60d`;
+  const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  const data = (await response.json()) as YahooChartResponse;
+  const result = data.chart.result?.[0];
+  if (!result) throw new Error(`No Yahoo Finance data for ${symbol}: ${JSON.stringify(data.chart.error)}`);
+
+  const { timestamp, indicators } = result;
+  const quote = indicators.quote[0];
+
+  return timestamp
+    .map((ts, i) => ({
+      date: new Date(ts * 1000).toISOString().slice(0, 10),
+      open: quote.open[i] ?? 0,
+      high: quote.high[i] ?? 0,
+      low: quote.low[i] ?? 0,
+      close: quote.close[i] ?? 0,
+      volume: quote.volume[i] ?? 0,
     }))
+    .filter((b) => b.close > 0)
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
@@ -77,22 +89,20 @@ export const handler = async (
   const bucketName = process.env.BUCKET_NAME!;
   const watchlistTable = process.env.WATCHLIST_TABLE!;
   const flashAlphaArn = process.env.FLASH_ALPHA_SECRET_ARN!;
-  const alphaVantageArn = process.env.ALPHA_VANTAGE_SECRET_ARN!;
 
   const date = event.date ?? new Date().toISOString().slice(0, 10);
 
   info('fetch-market-context started', { date });
 
-  const [flashAlphaKey, alphaVantageKey, tickers] = await Promise.all([
+  const [flashAlphaKey, tickers] = await Promise.all([
     getSecretValue(flashAlphaArn),
-    getSecretValue(alphaVantageArn),
     getActiveWatchlist(watchlistTable),
   ]);
 
   const [vixBars, spyBars, qqqBars] = await Promise.all([
-    fetchAlphaVantageDailyOhlcv('VIX', alphaVantageKey),
-    fetchAlphaVantageDailyOhlcv('SPY', alphaVantageKey),
-    fetchAlphaVantageDailyOhlcv('QQQ', alphaVantageKey),
+    fetchYahooOhlcv('^VIX'),
+    fetchYahooOhlcv('SPY'),
+    fetchYahooOhlcv('QQQ'),
   ]);
 
   const vixCloses = vixBars.map((b) => b.close);

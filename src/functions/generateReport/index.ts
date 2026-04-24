@@ -142,7 +142,7 @@ function buildFlagsSection(
   date: string,
 ): string {
   const earningsWarnings = enrichedTickers
-    .filter((e) => e.rawFundamentals.earningsDte !== undefined && e.rawFundamentals.earningsDte <= 14)
+    .filter((e) => e.rawFundamentals?.earningsDte !== undefined && e.rawFundamentals.earningsDte <= 14)
     .map(
       (e) =>
         `<li><strong>${e.ticker.symbol}</strong> — earnings in ${e.rawFundamentals.earningsDte} days (${e.rawFundamentals.earningsDate})</li>`,

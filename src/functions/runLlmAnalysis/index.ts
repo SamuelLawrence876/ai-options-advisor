@@ -120,6 +120,18 @@ export const handler = async (
 
     info('run-llm-analysis stage 1 started', { symbol, date });
 
+    if (enriched.suggestedStrategy === 'SKIP') {
+      info('run-llm-analysis stage 1 SKIP — no Bedrock call', { symbol });
+      return {
+        symbol,
+        recommendation: 'SKIP',
+        confidence: 'LOW',
+        reasoning: 'Ticker skipped: IV rank below threshold, earnings inside expiry window, or data unavailable.',
+        risks: [],
+        flags: [],
+      } as TickerAnalysis;
+    }
+
     const humanContext = await getHumanContext(humanContextTable, symbol);
     const dossier = formatDossier(enriched, marketContext, humanContext);
     const prompt = TICKER_ANALYSIS_PROMPT(dossier);

@@ -124,7 +124,7 @@ export class PipelineStateMachine extends Construct {
       lambdaFunction: enrichAndScore,
       comment: 'Compute VRP, event flags, candidate strikes, ROBP metrics',
       payload: TaskInput.fromObject({
-        'ticker.$': '$$.Map.Item.Value',
+        'ticker.$': '$.ticker',
         'date.$': '$.date',
         'marketContext.$': '$.marketContext',
       }),
@@ -134,7 +134,25 @@ export class PipelineStateMachine extends Construct {
     });
 
     const enrichFailedPass = new Pass(this, 'TickerEnrichFailed', {
-      comment: 'Record enrich failure and continue',
+      comment: 'Enrich failure — produce a SKIP enrichment so downstream Map states have the expected shape',
+      parameters: {
+        enriched: {
+          'ticker.$': '$.ticker',
+          'date.$': '$.date',
+          'marketContext.$': '$.marketContext',
+          suggestedStrategy: 'SKIP',
+          vrp: 0,
+          ivRankSignal: 'SKIP',
+          ivVsSector: 'INLINE',
+          earningsInWindow: false,
+          earningsProximity: 'CLEAR',
+          exDivInWindow: false,
+          near52wHigh: false,
+          atrPct: 0,
+          premiumCoversAtr: false,
+          liquidityOk: false,
+        },
+      },
     });
     enrichAndScoreStep.addCatch(enrichFailedPass, { resultPath: '$.error' });
 
@@ -157,8 +175,8 @@ export class PipelineStateMachine extends Construct {
       comment: 'Per-ticker Bedrock/Claude analysis',
       payload: TaskInput.fromObject({
         stage: 1,
-        'ticker.$': '$$.Map.Item.Value.ticker',
-        'enriched.$': '$$.Map.Item.Value.enriched',
+        'ticker.$': '$.ticker',
+        'enriched.$': '$.enriched',
         'date.$': '$.date',
         'marketContext.$': '$.marketContext',
       }),
@@ -168,7 +186,17 @@ export class PipelineStateMachine extends Construct {
     });
 
     const llmStage1FailedPass = new Pass(this, 'TickerLlmFailed', {
-      comment: 'Record LLM failure and continue',
+      comment: 'LLM failure — produce a SKIP analysis so collectAnalyses [*].analysis has an entry for every item',
+      parameters: {
+        analysis: {
+          'symbol.$': '$.ticker.symbol',
+          recommendation: 'SKIP',
+          confidence: 'LOW',
+          reasoning: 'LLM analysis failed; excluded from portfolio synthesis.',
+          risks: ['Pipeline error'],
+          flags: ['LLM_FAILED'],
+        },
+      },
     });
     llmStage1Step.addCatch(llmStage1FailedPass, { resultPath: '$.error' });
 

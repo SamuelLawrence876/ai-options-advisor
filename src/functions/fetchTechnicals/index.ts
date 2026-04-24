@@ -2,7 +2,6 @@ import { MarketContext, OhlcvBar, TechnicalsData, WatchlistItem } from '../../ty
 import { error, info } from '../../utils/logger';
 import { computeAtr, computeMovingAverage, classifyTrend } from '../../utils/metrics';
 import { putJson } from '../../utils/s3';
-import { getSecretValue } from '../../utils/secrets';
 
 interface FetchTechnicalsEvent {
   ticker: WatchlistItem;
@@ -10,44 +9,52 @@ interface FetchTechnicalsEvent {
   marketContext: MarketContext;
 }
 
-async function fetchDailyOhlcv(symbol: string, apiKey: string): Promise<OhlcvBar[]> {
-  const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${symbol}&outputsize=full&apikey=${apiKey}`;
-  const response = await fetch(url);
-  const data = (await response.json()) as Record<string, unknown>;
-  const series = data['Time Series (Daily)'] as
-    | Record<string, Record<string, string>>
-    | undefined;
+interface YahooChartResponse {
+  chart: {
+    result?: Array<{
+      timestamp: number[];
+      indicators: { quote: Array<{ open: (number | null)[]; high: (number | null)[]; low: (number | null)[]; close: (number | null)[]; volume: (number | null)[] }> };
+    }>;
+    error?: unknown;
+  };
+}
 
-  if (!series) throw new Error(`No daily data for ${symbol}: ${JSON.stringify(data)}`);
+async function fetchDailyOhlcv(symbol: string): Promise<OhlcvBar[]> {
+  const encoded = encodeURIComponent(symbol);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encoded}?interval=1d&range=1y`;
+  const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+  const data = (await response.json()) as YahooChartResponse;
+  const result = data.chart.result?.[0];
+  if (!result) throw new Error(`No Yahoo Finance data for ${symbol}: ${JSON.stringify(data.chart.error)}`);
 
-  const bars = Object.entries(series)
-    .map(([barDate, bar]) => ({
-      date: barDate,
-      open: parseFloat(bar['1. open']),
-      high: parseFloat(bar['2. high']),
-      low: parseFloat(bar['3. low']),
-      close: parseFloat(bar['5. adjusted close']),
-      volume: parseFloat(bar['6. volume']),
+  const { timestamp, indicators } = result;
+  const quote = indicators.quote[0];
+
+  return timestamp
+    .map((ts, i) => ({
+      date: new Date(ts * 1000).toISOString().slice(0, 10),
+      open: quote.open[i] ?? 0,
+      high: quote.high[i] ?? 0,
+      low: quote.low[i] ?? 0,
+      close: quote.close[i] ?? 0,
+      volume: quote.volume[i] ?? 0,
     }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  return bars.slice(-252);
+    .filter((b) => b.close > 0)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-252);
 }
 
 export const handler = async (event: FetchTechnicalsEvent): Promise<FetchTechnicalsEvent> => {
   const bucketName = process.env.BUCKET_NAME!;
-  const alphaVantageArn = process.env.ALPHA_VANTAGE_SECRET_ARN!;
 
   const { ticker, date } = event;
   const symbol = ticker.symbol;
 
   info('fetch-technicals started', { symbol, date });
 
-  const apiKey = await getSecretValue(alphaVantageArn);
-
   let bars: OhlcvBar[];
   try {
-    bars = await fetchDailyOhlcv(symbol, apiKey);
+    bars = await fetchDailyOhlcv(symbol);
   } catch (err) {
     error(`Daily OHLCV fetch failed for ${symbol}`, err as Error);
     throw err;

@@ -61,12 +61,27 @@ export const handler = async (event: FetchOptionsDataEvent): Promise<FetchOption
 
   const apiKey = await getSecretValue(flashAlphaArn);
 
-  let raw: FlashAlphaResponse;
+  let raw: FlashAlphaResponse | undefined;
   try {
     raw = await fetchFlashAlphaOptions(symbol, apiKey);
   } catch (err) {
-    error(`FlashAlpha fetch failed for ${symbol}`, err as Error);
-    throw err;
+    error(`FlashAlpha fetch failed for ${symbol} — writing SKIP placeholder`, err as Error);
+  }
+
+  if (!raw) {
+    const placeholder: OptionsData = {
+      symbol,
+      ivRank: 0,
+      ivPercentile: 0,
+      iv30d: 0,
+      hv30d: 0,
+      volSurface: [],
+      candidateStrikes: [],
+      fetchedAt: new Date().toISOString(),
+    };
+    await putJson(bucketName, `raw-data/${date}/${symbol}/options.json`, placeholder);
+    info('fetch-options-data wrote SKIP placeholder', { symbol, date });
+    return event;
   }
 
   const quotes: FlashAlphaQuote[] = raw.volSurface ?? raw.vol_surface ?? [];

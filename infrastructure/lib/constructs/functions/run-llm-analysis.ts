@@ -1,4 +1,5 @@
 import { Duration, Stack } from 'aws-cdk-lib';
+import { FoundationModelIdentifier } from 'aws-cdk-lib/aws-bedrock';
 import { ITable } from 'aws-cdk-lib/aws-dynamodb';
 import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
@@ -7,6 +8,8 @@ import { IBucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import { addStagePrefix } from '../../utils/naming';
+
+const BEDROCK_MODEL_ID = `us.${FoundationModelIdentifier.ANTHROPIC_CLAUDE_SONNET_4_20250514_V1_0.modelId}`;
 
 export interface RunLlmAnalysisProps {
   stage: string;
@@ -39,6 +42,7 @@ export class RunLlmAnalysis extends Construct {
         BUCKET_NAME: bucket.bucketName,
         WATCHLIST_TABLE: watchlistTable.tableName,
         HUMAN_CONTEXT_TABLE: humanContextTable.tableName,
+        BEDROCK_MODEL_ID,
       },
       bundling: { minify: true, sourceMap: true },
     });
@@ -50,9 +54,10 @@ export class RunLlmAnalysis extends Construct {
     this.fn.addToRolePolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
-        actions: ['bedrock:InvokeModel'],
+        actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
         resources: [
-          `arn:aws:bedrock:${Stack.of(this).region}::foundation-model/anthropic.claude-*`,
+          `arn:aws:bedrock:*::foundation-model/anthropic.claude-*`,
+          `arn:aws:bedrock:*:${Stack.of(this).account}:inference-profile/us.anthropic.claude-*`,
         ],
       }),
     );
