@@ -41,11 +41,11 @@ describe('pipeline end-to-end', () => {
 
     it('writes raw data for every active ticker', async () => {
       const keys = await listObjects(bucket, `raw-data/${TEST_DATE}/`);
-      const prefixes = new Set(keys.map(k => k.split('/')[2]));
+      const tickerKeys = keys.filter(k => k.split('/').length === 4);
+      const prefixes = new Set(tickerKeys.map(k => k.split('/')[2]));
       expect(prefixes.size).toBeGreaterThan(0);
 
       for (const symbol of prefixes) {
-        if (symbol === undefined) continue;
         expect(keys).toContain(`raw-data/${TEST_DATE}/${symbol}/options.json`);
         expect(keys).toContain(`raw-data/${TEST_DATE}/${symbol}/fundamentals.json`);
         expect(keys).toContain(`raw-data/${TEST_DATE}/${symbol}/technicals.json`);

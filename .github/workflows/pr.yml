@@ -146,6 +146,11 @@ jobs:
               });
             }
 
+      - name: Seed watchlist
+        run: ./scripts/seed-watchlist.sh dev
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+
       - name: Run acceptance tests
         run: npm run test:acceptance
         env:
