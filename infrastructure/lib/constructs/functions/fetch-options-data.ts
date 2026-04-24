@@ -38,7 +38,7 @@ export class FetchOptionsData extends Construct {
         STAGE: stage,
         BUCKET_NAME: bucket.bucketName,
         WATCHLIST_TABLE: watchlistTable.tableName,
-        FLASH_ALPHA_SECRET_ARN: flashAlphaApiKey.secretArn,
+        FLASH_ALPHA_SECRET_ARN: flashAlphaApiKey.secretName,
       },
       bundling: { minify: true, sourceMap: true },
     });

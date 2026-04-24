@@ -38,7 +38,7 @@ export class FetchTechnicals extends Construct {
         STAGE: stage,
         BUCKET_NAME: bucket.bucketName,
         WATCHLIST_TABLE: watchlistTable.tableName,
-        FINNHUB_SECRET_ARN: finnhubApiKey.secretArn,
+        FINNHUB_SECRET_ARN: finnhubApiKey.secretName,
       },
       bundling: { minify: true, sourceMap: true },
     });

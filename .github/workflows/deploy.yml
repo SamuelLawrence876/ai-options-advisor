@@ -37,6 +37,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Sync secrets to AWS
+        run: |
+          upsert_secret() {
+            local name="$1" value="$2"
+            if aws secretsmanager describe-secret --secret-id "$name" > /dev/null 2>&1; then
+              aws secretsmanager put-secret-value --secret-id "$name" --secret-string "$value"
+            else
+              aws secretsmanager create-secret --name "$name" --secret-string "$value"
+            fi
+          }
+          upsert_secret "/options-advisor/dev/finnhub-api-key"    "${{ secrets.FINHUB_API_KEY }}"
+          upsert_secret "/options-advisor/dev/flash-alpha-api-key" "${{ secrets.FLASH_ALPHA_API_KEY }}"
+
       - name: Bootstrap CDK (idempotent)
         run: npx cdk bootstrap
 
@@ -107,6 +120,19 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Sync secrets to AWS
+        run: |
+          upsert_secret() {
+            local name="$1" value="$2"
+            if aws secretsmanager describe-secret --secret-id "$name" > /dev/null 2>&1; then
+              aws secretsmanager put-secret-value --secret-id "$name" --secret-string "$value"
+            else
+              aws secretsmanager create-secret --name "$name" --secret-string "$value"
+            fi
+          }
+          upsert_secret "/options-advisor/production/finnhub-api-key"    "${{ secrets.FINHUB_API_KEY }}"
+          upsert_secret "/options-advisor/production/flash-alpha-api-key" "${{ secrets.FLASH_ALPHA_API_KEY }}"
 
       - name: Bootstrap CDK (idempotent)
         run: npx cdk bootstrap

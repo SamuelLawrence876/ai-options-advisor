@@ -4,7 +4,7 @@ import { computeAtr, computeMovingAverage, classifyTrend } from '../../utils/met
 import { putJson } from '../../utils/aws/s3';
 import { getSecretValue } from '../../utils/aws/secrets';
 import { fetchFinnhubOhlcv, fetchFinnhubQuote } from '../../utils/clients/finnhub';
-import { dateOffsetDays } from '../../utils/dates';
+import { dateOffsetDays, resolveApiDate } from '../../utils/dates';
 
 interface FetchTechnicalsEvent {
   ticker: WatchlistItem;
@@ -18,6 +18,7 @@ export const handler = async (event: FetchTechnicalsEvent): Promise<FetchTechnic
 
   const { ticker, date } = event;
   const symbol = ticker.symbol;
+  const apiDate = resolveApiDate(date);
 
   info('fetch-technicals started', { symbol, date });
 
@@ -27,7 +28,7 @@ export const handler = async (event: FetchTechnicalsEvent): Promise<FetchTechnic
   let price: number;
   try {
     [bars, price] = await Promise.all([
-      fetchFinnhubOhlcv(symbol, dateOffsetDays(date, -365), date, finnhubKey),
+      fetchFinnhubOhlcv(symbol, dateOffsetDays(apiDate, -365), apiDate, finnhubKey),
       fetchFinnhubQuote(symbol, finnhubKey),
     ]);
   } catch (err) {

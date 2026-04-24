@@ -39,8 +39,8 @@ export class FetchMarketContext extends Construct {
         STAGE: stage,
         BUCKET_NAME: bucket.bucketName,
         WATCHLIST_TABLE: watchlistTable.tableName,
-        FLASH_ALPHA_SECRET_ARN: flashAlphaApiKey.secretArn,
-        FINNHUB_SECRET_ARN: finnhubApiKey.secretArn,
+        FLASH_ALPHA_SECRET_ARN: flashAlphaApiKey.secretName,
+        FINNHUB_SECRET_ARN: finnhubApiKey.secretName,
       },
       bundling: { minify: true, sourceMap: true },
     });

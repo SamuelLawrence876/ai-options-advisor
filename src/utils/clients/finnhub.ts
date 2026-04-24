@@ -36,9 +36,13 @@ export async function fetchFinnhubOhlcv(
   const to = Math.floor(new Date(toDate).getTime() / 1000);
   const url = `${BASE_URL}/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=D&from=${from}&to=${to}&token=${apiKey}`;
   const response = await fetch(url);
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Finnhub candle HTTP ${response.status} for ${symbol}: ${body}`);
+  }
   const data = (await response.json()) as FinnhubCandleResponse;
   if (data.s !== 'ok' || !data.t?.length) {
-    throw new Error(`No Finnhub candle data for ${symbol}: status=${data.s}`);
+    throw new Error(`No Finnhub candle data for ${symbol}: status=${data.s}, response=${JSON.stringify(data)}`);
   }
   return data.t
     .map((ts, i) => ({

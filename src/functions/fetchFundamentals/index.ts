@@ -8,7 +8,7 @@ import {
   fetchFinnhubRecommendations,
   fetchFinnhubUpcomingDividend,
 } from '../../utils/clients/finnhub';
-import { daysBetween, dateOffsetDays } from '../../utils/dates';
+import { daysBetween, dateOffsetDays, resolveApiDate } from '../../utils/dates';
 import { deriveAnalystConsensus } from './analystConsensus';
 
 interface FetchFundamentalsEvent {
@@ -23,12 +23,13 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
 
   const { ticker, date } = event;
   const symbol = ticker.symbol;
+  const apiDate = resolveApiDate(date);
 
   info('fetch-fundamentals started', { symbol, date });
 
   const [finnhubKey, earningsCalendar] = await Promise.all([
     getSecretValue(finnhubArn),
-    getJson<Record<string, string>>(bucketName, `raw-data/${date}/earnings-calendar.json`).catch(
+    getJson<Record<string, string>>(bucketName, `raw-data/${apiDate}/earnings-calendar.json`).catch(
       err => {
         error('Failed to read earnings calendar from S3', err as Error);
         return {} as Record<string, string>;
@@ -40,7 +41,7 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
   const earningsDte = earningsDate ? daysBetween(earningsDate) : undefined;
 
   const [exDivDate, annualDividendYield, meanPriceTarget, ratings] = await Promise.all([
-    fetchFinnhubUpcomingDividend(symbol, date, dateOffsetDays(date, 90), finnhubKey).catch(
+    fetchFinnhubUpcomingDividend(symbol, apiDate, dateOffsetDays(apiDate, 90), finnhubKey).catch(
       () => undefined,
     ),
     fetchFinnhubDividendYield(symbol, finnhubKey).catch(() => undefined),

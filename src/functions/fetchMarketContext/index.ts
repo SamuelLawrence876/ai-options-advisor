@@ -6,7 +6,7 @@ import { putJson } from '../../utils/aws/s3';
 import { getSecretValue } from '../../utils/aws/secrets';
 import { fetchFlashAlphaIv } from '../../utils/clients/flashAlpha';
 import { fetchFinnhubEarningsCalendar } from '../../utils/clients/finnhub';
-import { dateOffsetDays } from '../../utils/dates';
+import { dateOffsetDays, resolveApiDate } from '../../utils/dates';
 import { fetchMarketBars } from './marketBars';
 
 const SECTOR_ETF_MAP: Record<string, string> = {
@@ -42,7 +42,8 @@ export const handler = async (
   const finnhubArn = process.env.FINNHUB_SECRET_ARN!;
 
   const date = event.date ?? new Date().toISOString().slice(0, 10);
-  const from60d = dateOffsetDays(date, -60);
+  const apiDate = resolveApiDate(date);
+  const from60d = dateOffsetDays(apiDate, -60);
 
   info('fetch-market-context started', { date });
 
@@ -55,7 +56,7 @@ export const handler = async (
   const { vixBars, spyBars, qqqBars, vixPrice, spyPrice, qqqPrice } = await fetchMarketBars(
     finnhubKey,
     from60d,
-    date,
+    apiDate,
   );
 
   const vix20dAvg = computeMovingAverage(vixBars.map(b => b.close), 20);
@@ -92,8 +93,8 @@ export const handler = async (
   );
 
   const earningsCalendar = await fetchFinnhubEarningsCalendar(
-    date,
-    dateOffsetDays(date, 90),
+    apiDate,
+    dateOffsetDays(apiDate, 90),
     finnhubKey,
   ).catch(err => {
     error('Failed to fetch earnings calendar', err as Error);
