@@ -4,17 +4,12 @@ import { computeAtr, computeMovingAverage, classifyTrend } from '../../utils/met
 import { putJson } from '../../utils/aws/s3';
 import { getSecretValue } from '../../utils/aws/secrets';
 import { fetchFinnhubOhlcv, fetchFinnhubQuote } from '../../utils/clients/finnhub';
+import { dateOffsetDays } from '../../utils/dates';
 
 interface FetchTechnicalsEvent {
   ticker: WatchlistItem;
   date: string;
   marketContext: MarketContext;
-}
-
-function dateOffsetDays(base: string, days: number): string {
-  const d = new Date(base);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
 }
 
 export const handler = async (event: FetchTechnicalsEvent): Promise<FetchTechnicalsEvent> => {
@@ -27,13 +22,12 @@ export const handler = async (event: FetchTechnicalsEvent): Promise<FetchTechnic
   info('fetch-technicals started', { symbol, date });
 
   const finnhubKey = await getSecretValue(finnhubArn);
-  const from1y = dateOffsetDays(date, -365);
 
   let bars;
   let price: number;
   try {
     [bars, price] = await Promise.all([
-      fetchFinnhubOhlcv(symbol, from1y, date, finnhubKey),
+      fetchFinnhubOhlcv(symbol, dateOffsetDays(date, -365), date, finnhubKey),
       fetchFinnhubQuote(symbol, finnhubKey),
     ]);
   } catch (err) {

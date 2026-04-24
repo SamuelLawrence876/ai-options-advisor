@@ -1,6 +1,5 @@
 import {
   EnrichedTicker,
-  IvSnapshot,
   MarketContext,
   PortfolioSynthesis,
   ReportMetadata,
@@ -10,6 +9,7 @@ import { putIvSnapshot, putReportMetadata } from '../../utils/aws/dynamodb';
 import { error, info } from '../../utils/logger';
 import { getText, getPresignedUrl } from '../../utils/aws/s3';
 import { buildEmailBody, sendEmail } from './email';
+import { buildIvSnapshots } from './ivSnapshots';
 
 interface DeliverReportEvent {
   reportKey: string;
@@ -58,18 +58,7 @@ export const handler = async (event: DeliverReportEvent): Promise<void> => {
   };
   await putReportMetadata(reportsTable, reportMetadata);
 
-  const ivSnapshots: IvSnapshot[] = enrichedTickers
-    .filter(e => e.rawOptions != null)
-    .map(e => ({
-      symbol: e.ticker.symbol,
-      date,
-      iv30d: e.rawOptions.iv30d,
-      ivRank: e.rawOptions.ivRank,
-      ivPercentile: e.rawOptions.ivPercentile,
-      hv30d: e.rawOptions.hv30d,
-      vrp: e.vrp,
-    }));
-
+  const ivSnapshots = buildIvSnapshots(enrichedTickers, date);
   await Promise.all(ivSnapshots.map(snapshot => putIvSnapshot(ivHistoryTable, snapshot)));
 
   info('deliver-report complete', { date, recipientEmail, ivSnapshotsWritten: ivSnapshots.length });

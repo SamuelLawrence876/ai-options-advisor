@@ -8,23 +8,13 @@ import {
   fetchFinnhubRecommendations,
   fetchFinnhubUpcomingDividend,
 } from '../../utils/clients/finnhub';
+import { daysBetween, dateOffsetDays } from '../../utils/dates';
+import { deriveAnalystConsensus } from './analystConsensus';
 
 interface FetchFundamentalsEvent {
   ticker: WatchlistItem;
   date: string;
   marketContext: MarketContext;
-}
-
-function daysBetween(dateStr: string): number {
-  const target = new Date(dateStr);
-  const now = new Date();
-  return Math.round((target.getTime() - now.getTime()) / 86400000);
-}
-
-function dateOffsetDays(base: string, days: number): string {
-  const d = new Date(base);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
 }
 
 export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFundamentalsEvent> => {
@@ -49,11 +39,10 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
   const earningsDate = earningsCalendar[symbol];
   const earningsDte = earningsDate ? daysBetween(earningsDate) : undefined;
 
-  const divFrom = date;
-  const divTo = dateOffsetDays(date, 90);
-
   const [exDivDate, annualDividendYield, meanPriceTarget, ratings] = await Promise.all([
-    fetchFinnhubUpcomingDividend(symbol, divFrom, divTo, finnhubKey).catch(() => undefined),
+    fetchFinnhubUpcomingDividend(symbol, date, dateOffsetDays(date, 90), finnhubKey).catch(
+      () => undefined,
+    ),
     fetchFinnhubDividendYield(symbol, finnhubKey).catch(() => undefined),
     fetchFinnhubPriceTarget(symbol, finnhubKey).catch(() => undefined),
     fetchFinnhubRecommendations(symbol, finnhubKey).catch(() => ({
@@ -64,17 +53,11 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
   ]);
 
   const exDivDte = exDivDate ? daysBetween(exDivDate) : undefined;
-
-  const { buyCount, holdCount, sellCount } = ratings;
-  const totalAnalysts = buyCount + holdCount + sellCount;
-  const analystConsensus =
-    totalAnalysts === 0
-      ? 'N/A'
-      : buyCount > sellCount + holdCount
-        ? 'Buy'
-        : sellCount > buyCount + holdCount
-          ? 'Sell'
-          : 'Hold';
+  const analystConsensus = deriveAnalystConsensus(
+    ratings.buyCount,
+    ratings.holdCount,
+    ratings.sellCount,
+  );
 
   const fundamentals: FundamentalsData = {
     symbol,

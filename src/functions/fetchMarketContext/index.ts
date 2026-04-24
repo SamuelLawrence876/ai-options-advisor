@@ -5,11 +5,9 @@ import { classifyMarketTrend, classifyVixRegime, computeMovingAverage } from '..
 import { putJson } from '../../utils/aws/s3';
 import { getSecretValue } from '../../utils/aws/secrets';
 import { fetchFlashAlphaIv } from '../../utils/clients/flashAlpha';
-import {
-  fetchFinnhubEarningsCalendar,
-  fetchFinnhubOhlcv,
-  fetchFinnhubQuote,
-} from '../../utils/clients/finnhub';
+import { fetchFinnhubEarningsCalendar } from '../../utils/clients/finnhub';
+import { dateOffsetDays } from '../../utils/dates';
+import { fetchMarketBars } from './marketBars';
 
 const SECTOR_ETF_MAP: Record<string, string> = {
   Technology: 'XLK',
@@ -35,12 +33,6 @@ interface FetchMarketContextResult {
   tickers: WatchlistItem[];
 }
 
-function dateOffsetDays(base: string, days: number): string {
-  const d = new Date(base);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
 export const handler = async (
   event: FetchMarketContextEvent,
 ): Promise<FetchMarketContextResult> => {
@@ -60,27 +52,17 @@ export const handler = async (
     getActiveWatchlist(watchlistTable),
   ]);
 
-  const [vixBars, spyBars, qqqBars, spyPrice, qqqPrice, vixPrice] = await Promise.all([
-    fetchFinnhubOhlcv('^VIX', from60d, date, finnhubKey),
-    fetchFinnhubOhlcv('SPY', from60d, date, finnhubKey),
-    fetchFinnhubOhlcv('QQQ', from60d, date, finnhubKey),
-    fetchFinnhubQuote('SPY', finnhubKey),
-    fetchFinnhubQuote('QQQ', finnhubKey),
-    fetchFinnhubQuote('^VIX', finnhubKey),
-  ]);
+  const { vixBars, spyBars, qqqBars, vixPrice, spyPrice, qqqPrice } = await fetchMarketBars(
+    finnhubKey,
+    from60d,
+    date,
+  );
 
-  const vixCloses = vixBars.map(b => b.close);
-  const spyCloses = spyBars.map(b => b.close);
-  const qqqCloses = qqqBars.map(b => b.close);
-
-  const vix = vixPrice;
-  const vix20dAvg = computeMovingAverage(vixCloses, 20);
-
-  const spyMa20 = computeMovingAverage(spyCloses, 20);
-  const spyMa50 = computeMovingAverage(spyCloses, 50);
-
-  const qqqMa20 = computeMovingAverage(qqqCloses, 20);
-  const qqqMa50 = computeMovingAverage(qqqCloses, 50);
+  const vix20dAvg = computeMovingAverage(vixBars.map(b => b.close), 20);
+  const spyMa20 = computeMovingAverage(spyBars.map(b => b.close), 20);
+  const spyMa50 = computeMovingAverage(spyBars.map(b => b.close), 50);
+  const qqqMa20 = computeMovingAverage(qqqBars.map(b => b.close), 20);
+  const qqqMa50 = computeMovingAverage(qqqBars.map(b => b.close), 50);
 
   const spyTrend = classifyMarketTrend(spyPrice, spyMa20, spyMa50);
   const qqqTrend = classifyMarketTrend(qqqPrice, qqqMa20, qqqMa50);
@@ -109,19 +91,20 @@ export const handler = async (
     }),
   );
 
-  const earningsTo = dateOffsetDays(date, 90);
-  const earningsCalendar = await fetchFinnhubEarningsCalendar(date, earningsTo, finnhubKey).catch(
-    err => {
-      error('Failed to fetch earnings calendar', err as Error);
-      return {} as Record<string, string>;
-    },
-  );
+  const earningsCalendar = await fetchFinnhubEarningsCalendar(
+    date,
+    dateOffsetDays(date, 90),
+    finnhubKey,
+  ).catch(err => {
+    error('Failed to fetch earnings calendar', err as Error);
+    return {} as Record<string, string>;
+  });
 
   const marketContext: MarketContext = {
     date,
-    vix,
+    vix: vixPrice,
     vix20dAvg,
-    vixRegime: classifyVixRegime(vix),
+    vixRegime: classifyVixRegime(vixPrice),
     spyPrice,
     spyTrend,
     qqqPrice,
@@ -136,7 +119,7 @@ export const handler = async (
     putJson(bucketName, `raw-data/${date}/earnings-calendar.json`, earningsCalendar),
   ]);
 
-  info('fetch-market-context complete', { date, vix, marketTrend, tickerCount: tickers.length });
+  info('fetch-market-context complete', { date, vix: vixPrice, marketTrend, tickerCount: tickers.length });
 
   return { date, marketContext, tickers };
 };
