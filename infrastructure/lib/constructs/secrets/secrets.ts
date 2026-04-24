@@ -1,4 +1,4 @@
-import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
+import { ISecret, Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import { config } from '../../config';
 
@@ -7,23 +7,25 @@ export interface SecretsProps {
 }
 
 export class Secrets extends Construct {
-  public readonly flashAlphaApiKey: Secret;
+  public readonly flashAlphaApiKey: ISecret;
 
-  public readonly finnhubApiKey: Secret;
+  public readonly finnhubApiKey: ISecret;
 
   constructor(scope: Construct, id: string, props: SecretsProps) {
     super(scope, id);
 
     const { stage } = props;
 
-    this.flashAlphaApiKey = new Secret(this, 'FlashAlphaApiKey', {
-      secretName: config.secrets.flashAlphaApiKey(stage),
-      description: 'FlashAlpha API key for options data',
-    });
+    this.flashAlphaApiKey = Secret.fromSecretNameV2(
+      this,
+      'FlashAlphaApiKey',
+      config.secrets.flashAlphaApiKey(stage),
+    );
 
-    this.finnhubApiKey = new Secret(this, 'FinnhubApiKey', {
-      secretName: config.secrets.finnhubApiKey(stage),
-      description: 'Finnhub API key for OHLCV, quotes, earnings calendar, and fundamentals',
-    });
+    this.finnhubApiKey = Secret.fromSecretNameV2(
+      this,
+      'FinnhubApiKey',
+      config.secrets.finnhubApiKey(stage),
+    );
   }
 }
