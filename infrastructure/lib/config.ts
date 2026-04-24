@@ -5,6 +5,7 @@ export const config = {
   secrets: {
     flashAlphaApiKey: (stage: string) => `/options-advisor/${stage}/flash-alpha-api-key`,
     finnhubApiKey: (stage: string) => `/options-advisor/${stage}/finnhub-api-key`,
+    polygonApiKey: (stage: string) => `/options-advisor/${stage}/polygon-api-key`,
   },
 
   email: {

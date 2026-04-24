@@ -40,6 +40,7 @@ export const handler = async (
   const watchlistTable = process.env.WATCHLIST_TABLE!;
   const flashAlphaArn = process.env.FLASH_ALPHA_SECRET_ARN!;
   const finnhubArn = process.env.FINNHUB_SECRET_ARN!;
+  const polygonArn = process.env.POLYGON_SECRET_ARN!;
 
   const date = event.date ?? new Date().toISOString().slice(0, 10);
   const apiDate = resolveApiDate(date);
@@ -47,14 +48,16 @@ export const handler = async (
 
   info('fetch-market-context started', { date });
 
-  const [flashAlphaKey, finnhubKey, tickers] = await Promise.all([
+  const [flashAlphaKey, finnhubKey, polygonKey, tickers] = await Promise.all([
     getSecretValue(flashAlphaArn),
     getSecretValue(finnhubArn),
+    getSecretValue(polygonArn),
     getActiveWatchlist(watchlistTable),
   ]);
 
   const { vixBars, spyBars, qqqBars, vixPrice, spyPrice, qqqPrice } = await fetchMarketBars(
     finnhubKey,
+    polygonKey,
     from60d,
     apiDate,
   );

@@ -13,6 +13,7 @@ export interface FetchTechnicalsProps {
   bucket: IBucket;
   watchlistTable: ITable;
   finnhubApiKey: ISecret;
+  polygonApiKey: ISecret;
 }
 
 export class FetchTechnicals extends Construct {
@@ -21,12 +22,12 @@ export class FetchTechnicals extends Construct {
   constructor(scope: Construct, id: string, props: FetchTechnicalsProps) {
     super(scope, id);
 
-    const { stage, bucket, watchlistTable, finnhubApiKey } = props;
+    const { stage, bucket, watchlistTable, finnhubApiKey, polygonApiKey } = props;
 
     this.fn = new NodejsFunction(this, 'Function', {
       functionName: addStagePrefix(stage, 'fetch-technicals'),
       description:
-        'Fetches 252-day price history per ticker from Finnhub and computes technical signals: trend classification, 20/50d MAs, ATR, and 52-week range',
+        'Fetches 252-day price history per ticker from Polygon and computes technical signals: trend classification, 20/50d MAs, ATR, and 52-week range',
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
       entry: path.join(__dirname, '../../../../src/functions/fetchTechnicals/index.ts'),
@@ -39,6 +40,7 @@ export class FetchTechnicals extends Construct {
         BUCKET_NAME: bucket.bucketName,
         WATCHLIST_TABLE: watchlistTable.tableName,
         FINNHUB_SECRET_ARN: finnhubApiKey.secretName,
+        POLYGON_SECRET_ARN: polygonApiKey.secretName,
       },
       bundling: { minify: true, sourceMap: true },
     });
@@ -46,5 +48,6 @@ export class FetchTechnicals extends Construct {
     bucket.grantReadWrite(this.fn);
     watchlistTable.grantReadData(this.fn);
     finnhubApiKey.grantRead(this.fn);
+    polygonApiKey.grantRead(this.fn);
   }
 }

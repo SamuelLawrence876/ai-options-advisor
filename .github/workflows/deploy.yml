@@ -49,6 +49,7 @@ jobs:
           }
           upsert_secret "/options-advisor/dev/finnhub-api-key"    "${{ secrets.FINHUB_API_KEY }}"
           upsert_secret "/options-advisor/dev/flash-alpha-api-key" "${{ secrets.FLASH_ALPHA_API_KEY }}"
+          upsert_secret "/options-advisor/dev/polygon-api-key"     "${{ secrets.POLYGON_API_KEY }}"
 
       - name: Bootstrap CDK (idempotent)
         run: npx cdk bootstrap
@@ -133,6 +134,7 @@ jobs:
           }
           upsert_secret "/options-advisor/production/finnhub-api-key"    "${{ secrets.FINHUB_API_KEY }}"
           upsert_secret "/options-advisor/production/flash-alpha-api-key" "${{ secrets.FLASH_ALPHA_API_KEY }}"
+          upsert_secret "/options-advisor/production/polygon-api-key"     "${{ secrets.POLYGON_API_KEY }}"
 
       - name: Bootstrap CDK (idempotent)
         run: npx cdk bootstrap

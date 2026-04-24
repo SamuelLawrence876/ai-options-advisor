@@ -11,6 +11,8 @@ export class Secrets extends Construct {
 
   public readonly finnhubApiKey: ISecret;
 
+  public readonly polygonApiKey: ISecret;
+
   constructor(scope: Construct, id: string, props: SecretsProps) {
     super(scope, id);
 
@@ -26,6 +28,12 @@ export class Secrets extends Construct {
       this,
       'FinnhubApiKey',
       config.secrets.finnhubApiKey(stage),
+    );
+
+    this.polygonApiKey = Secret.fromSecretNameV2(
+      this,
+      'PolygonApiKey',
+      config.secrets.polygonApiKey(stage),
     );
   }
 }

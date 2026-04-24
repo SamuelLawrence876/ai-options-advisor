@@ -14,6 +14,7 @@ export interface FetchMarketContextProps {
   watchlistTable: ITable;
   flashAlphaApiKey: ISecret;
   finnhubApiKey: ISecret;
+  polygonApiKey: ISecret;
 }
 
 export class FetchMarketContext extends Construct {
@@ -22,7 +23,7 @@ export class FetchMarketContext extends Construct {
   constructor(scope: Construct, id: string, props: FetchMarketContextProps) {
     super(scope, id);
 
-    const { stage, bucket, watchlistTable, flashAlphaApiKey, finnhubApiKey } = props;
+    const { stage, bucket, watchlistTable, flashAlphaApiKey, finnhubApiKey, polygonApiKey } = props;
 
     this.fn = new NodejsFunction(this, 'Function', {
       functionName: addStagePrefix(stage, 'fetch-market-context'),
@@ -32,7 +33,7 @@ export class FetchMarketContext extends Construct {
       architecture: Architecture.ARM_64,
       entry: path.join(__dirname, '../../../../src/functions/fetchMarketContext/index.ts'),
       handler: 'handler',
-      timeout: Duration.minutes(1),
+      timeout: Duration.minutes(2),
       memorySize: 256,
       environment: {
         SERVICE_NAME: addStagePrefix(stage, 'fetch-market-context'),
@@ -41,6 +42,7 @@ export class FetchMarketContext extends Construct {
         WATCHLIST_TABLE: watchlistTable.tableName,
         FLASH_ALPHA_SECRET_ARN: flashAlphaApiKey.secretName,
         FINNHUB_SECRET_ARN: finnhubApiKey.secretName,
+        POLYGON_SECRET_ARN: polygonApiKey.secretName,
       },
       bundling: { minify: true, sourceMap: true },
     });
@@ -49,5 +51,6 @@ export class FetchMarketContext extends Construct {
     watchlistTable.grantReadData(this.fn);
     flashAlphaApiKey.grantRead(this.fn);
     finnhubApiKey.grantRead(this.fn);
+    polygonApiKey.grantRead(this.fn);
   }
 }

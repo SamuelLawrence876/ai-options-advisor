@@ -3,7 +3,8 @@ import { error, info } from '../../utils/logger';
 import { computeAtr, computeMovingAverage, classifyTrend } from '../../utils/metrics';
 import { putJson } from '../../utils/aws/s3';
 import { getSecretValue } from '../../utils/aws/secrets';
-import { fetchFinnhubOhlcv, fetchFinnhubQuote } from '../../utils/clients/finnhub';
+import { fetchFinnhubQuote } from '../../utils/clients/finnhub';
+import { fetchPolygonOhlcv } from '../../utils/clients/polygon';
 import { dateOffsetDays, resolveApiDate } from '../../utils/dates';
 
 interface FetchTechnicalsEvent {
@@ -15,6 +16,7 @@ interface FetchTechnicalsEvent {
 export const handler = async (event: FetchTechnicalsEvent): Promise<FetchTechnicalsEvent> => {
   const bucketName = process.env.BUCKET_NAME!;
   const finnhubArn = process.env.FINNHUB_SECRET_ARN!;
+  const polygonArn = process.env.POLYGON_SECRET_ARN!;
 
   const { ticker, date } = event;
   const symbol = ticker.symbol;
@@ -22,13 +24,16 @@ export const handler = async (event: FetchTechnicalsEvent): Promise<FetchTechnic
 
   info('fetch-technicals started', { symbol, date });
 
-  const finnhubKey = await getSecretValue(finnhubArn);
+  const [finnhubKey, polygonKey] = await Promise.all([
+    getSecretValue(finnhubArn),
+    getSecretValue(polygonArn),
+  ]);
 
   let bars;
   let price: number;
   try {
     [bars, price] = await Promise.all([
-      fetchFinnhubOhlcv(symbol, dateOffsetDays(apiDate, -365), apiDate, finnhubKey),
+      fetchPolygonOhlcv(symbol, dateOffsetDays(apiDate, -365), apiDate, polygonKey),
       fetchFinnhubQuote(symbol, finnhubKey),
     ]);
   } catch (err) {
