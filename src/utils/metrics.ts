@@ -44,7 +44,7 @@ export function computeMaxLoss(strategy: StrategyRecommendation, params: MaxLoss
     case 'COVERED_CALL':
       return ((costBasis ?? strike) - premiumCollected) * 100;
     case 'PUT_CREDIT_SPREAD':
-      return ((spreadWidth ?? 5) - premiumCollected) * 100;
+      return Math.max(0, ((spreadWidth ?? 5) - premiumCollected) * 100);
     case 'CSP':
     case 'IRON_CONDOR':
       return (strike - premiumCollected) * 100;
@@ -71,7 +71,7 @@ export function computeBpr(
 }
 
 export function computeRobp(premiumCollected: number, bpr: number, dte: number): number {
-  if (bpr === 0) return 0;
+  if (bpr <= 0) return 0;
   const robp = premiumCollected / bpr;
   return robp * (365 / dte) * 100;
 }

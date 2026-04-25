@@ -91,6 +91,8 @@ export function selectCandidateStrike(
   const liquidityOk = strike.openInterest > 500 && spreadPct < 10;
 
   const spreadWidth = 5;
+  if (strategy === 'PUT_CREDIT_SPREAD' && premium >= spreadWidth) return undefined;
+
   const maxLoss = computeMaxLoss(strategy, {
     costBasis: ticker.costBasis,
     spreadWidth,

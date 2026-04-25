@@ -1,4 +1,66 @@
-import { earningsProximity, selectStrategy } from './strategy';
+import {
+  CandidateStrike,
+  FundamentalsData,
+  OptionsData,
+  TechnicalsData,
+  WatchlistItem,
+} from '../../types';
+import { earningsProximity, selectCandidateStrike, selectStrategy } from './strategy';
+
+const watchlistItem: WatchlistItem = {
+  symbol: 'AMZN',
+  strategyPref: 'ANY',
+  minDte: 21,
+  maxDte: 45,
+  active: true,
+};
+
+const fundamentals: FundamentalsData = {
+  symbol: 'AMZN',
+  fetchedAt: '2026-04-25T00:00:00.000Z',
+};
+
+const technicals: TechnicalsData = {
+  symbol: 'AMZN',
+  price: 240,
+  high52w: 250,
+  low52w: 120,
+  distanceFromHigh52wPct: 4,
+  ma20: 230,
+  ma50: 220,
+  trend: 'BULLISH',
+  atr14: 4,
+  atrPct: 1.7,
+  priceVsMa20Pct: 4.3,
+  priceVsMa50Pct: 9.1,
+  fetchedAt: '2026-04-25T00:00:00.000Z',
+};
+
+const putCandidate = (mid: number): CandidateStrike => ({
+  expiry: '2026-05-31',
+  dte: 36,
+  strike: 240,
+  optionType: 'put',
+  delta: -0.27,
+  theta: 0.05,
+  vega: 0,
+  bid: mid - 0.1,
+  ask: mid + 0.1,
+  mid,
+  openInterest: 1000,
+  volume: 10,
+});
+
+const optionsWithCandidate = (candidate: CandidateStrike): OptionsData => ({
+  symbol: 'AMZN',
+  ivRank: 60,
+  ivPercentile: 70,
+  iv30d: 45,
+  hv30d: 30,
+  volSurface: [],
+  candidateStrikes: [candidate],
+  fetchedAt: '2026-04-25T00:00:00.000Z',
+});
 
 describe('earningsProximity', () => {
   it('returns CLEAR when earningsDte is undefined', () => {
@@ -52,5 +114,33 @@ describe('selectStrategy', () => {
 
   it('earnings block takes priority over IV rank block', () => {
     expect(selectStrategy('BULLISH', 30, false, 1.5, 'ANY', undefined)).toBe('SKIP');
+  });
+});
+
+describe('selectCandidateStrike', () => {
+  it('returns undefined for credit spreads with credit greater than spread width', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidate(putCandidate(6)),
+      fundamentals,
+      technicals,
+      watchlistItem,
+      'PUT_CREDIT_SPREAD',
+    );
+
+    expect(candidate).toBeUndefined();
+  });
+
+  it('returns a positive-risk credit spread when credit is below spread width', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidate(putCandidate(1.2)),
+      fundamentals,
+      technicals,
+      watchlistItem,
+      'PUT_CREDIT_SPREAD',
+    );
+
+    expect(candidate?.maxLoss).toBe(380);
+    expect(candidate?.bpr).toBe(380);
+    expect(candidate?.robpAnnualised).toBeGreaterThan(0);
   });
 });

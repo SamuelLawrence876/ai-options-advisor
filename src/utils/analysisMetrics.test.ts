@@ -96,4 +96,86 @@ describe('analysisMetrics', () => {
       robpAnnualised: 115.3,
     });
   });
+
+  it('removes top picks whose ticker analysis was skipped', () => {
+    const topPick = {
+      symbol: 'AAPL',
+      strategy: 'PUT_CREDIT_SPREAD',
+      tradeDescription: 'Sell the AAPL put spread.',
+      maxLoss: 100,
+      buyingPower: 100,
+      annualisedYield: 0.2,
+      robpAnnualised: 40.6,
+      confidence: 'HIGH',
+      reasoning: 'Best risk-adjusted return.',
+      risks: [],
+    } as TopPick;
+
+    const synthesis = {
+      topPicks: [topPick],
+      executiveSummary: 'One viable trade.',
+      sectorConcentrationWarnings: [],
+      correlatedRiskWarnings: [],
+      macroNote: 'Normal volatility.',
+      robpVsYieldDivergences: [],
+    } as PortfolioSynthesis;
+
+    const analyses: TickerAnalysis[] = [
+      {
+        symbol: 'AAPL',
+        recommendation: 'SKIP',
+        confidence: 'HIGH',
+        reasoning: 'Liquidity is too poor.',
+        risks: [],
+        flags: ['POOR_LIQUIDITY'],
+        annualisedYield: 0.2,
+        maxLoss: 100,
+        buyingPowerRequired: 100,
+        robpAnnualised: 40.6,
+      },
+    ];
+
+    expect(withTopPickMetrics(synthesis, analyses).topPicks).toEqual([]);
+  });
+
+  it('removes top picks with invalid risk metrics', () => {
+    const topPick = {
+      symbol: 'AMZN',
+      strategy: 'PUT_CREDIT_SPREAD',
+      tradeDescription: 'Sell the AMZN put spread.',
+      maxLoss: -108,
+      buyingPower: -108,
+      annualisedYield: 0.3,
+      robpAnnualised: -57.3,
+      confidence: 'HIGH',
+      reasoning: 'Invalid spread metrics.',
+      risks: [],
+    } as TopPick;
+
+    const synthesis = {
+      topPicks: [topPick],
+      executiveSummary: 'One viable trade.',
+      sectorConcentrationWarnings: [],
+      correlatedRiskWarnings: [],
+      macroNote: 'Normal volatility.',
+      robpVsYieldDivergences: [],
+    } as PortfolioSynthesis;
+
+    const analyses: TickerAnalysis[] = [
+      {
+        symbol: 'AMZN',
+        recommendation: 'PUT_CREDIT_SPREAD',
+        confidence: 'HIGH',
+        reasoning: 'Invalid spread metrics.',
+        risks: [],
+        flags: ['NEGATIVE_ROBP'],
+        annualisedYield: 0.3,
+        maxLoss: -108,
+        buyingPowerRequired: -108,
+        robpAnnualised: -57.3,
+      },
+    ];
+
+    expect(withTopPickMetrics(synthesis, analyses).topPicks).toEqual([]);
+  });
 });

@@ -8,6 +8,27 @@ See [PLAN.md](./PLAN.md) for the broader design notes and future roadmap.
 
 ---
 
+## Acronym Key
+
+- AI: Artificial intelligence.
+- API: Application programming interface.
+- ATR: Average true range, used as a volatility and move-size signal.
+- AWS: Amazon Web Services.
+- CDK: Cloud Development Kit, the infrastructure-as-code framework used here.
+- CSP: Cash-secured put.
+- DTE: Days to expiration.
+- ETF: Exchange-traded fund.
+- IV: Implied volatility.
+- LLM: Large language model.
+- OIDC: OpenID Connect, used by GitHub Actions to assume an AWS role.
+- OHLCV: Open, high, low, close, and volume market data.
+- ROBP: Return on buying power.
+- S3: Simple Storage Service, used for raw data and generated reports.
+- SES: Simple Email Service, used for email delivery.
+- VIX: Cboe Volatility Index.
+
+---
+
 ## ✨ What It Does
 
 `options-advisor` is a scheduled AWS pipeline for premium-selling trade research. It does not place trades, connect to a broker, or manage live positions. It prepares a decision-support report so you can review candidate trades manually.
@@ -20,7 +41,7 @@ Each run:
 4. 🤖 Sends viable candidates to Claude through Bedrock for per-ticker analysis.
 5. 🧠 Runs a portfolio-level synthesis that ranks the best opportunities.
 6. 📝 Writes a Markdown report to S3.
-7. 📬 Sends the report by SES email and stores report metadata plus IV snapshots in DynamoDB.
+7. 📬 Sends the report by SES email, posts it to Discord when configured, and stores report metadata plus IV snapshots in DynamoDB.
 
 The default schedule is Monday-Friday at 06:00 UTC.
 
@@ -54,6 +75,7 @@ Core AWS services:
 - ⚡ Lambda runs each pipeline step.
 - 🧠 Bedrock invokes Claude for analysis.
 - 📮 SES sends the finished report by email.
+- 💬 Discord receives the finished report through a webhook when the webhook secret exists.
 - ⏰ EventBridge triggers the weekday run.
 
 ---
@@ -182,6 +204,7 @@ Production secret names:
 /options-advisor/production/market-data-api-token
 /options-advisor/production/finnhub-api-key
 /options-advisor/production/polygon-api-key
+/options-advisor/production/discord-webhook-url
 ```
 
 Dev secret names:
@@ -191,6 +214,7 @@ Dev secret names:
 /options-advisor/dev/market-data-api-token
 /options-advisor/dev/finnhub-api-key
 /options-advisor/dev/polygon-api-key
+/options-advisor/dev/discord-webhook-url
 ```
 
 Example:
@@ -216,6 +240,11 @@ aws secretsmanager create-secret \
 aws secretsmanager create-secret \
   --name /options-advisor/dev/polygon-api-key \
   --secret-string 'YOUR_POLYGON_KEY' \
+  --region us-east-1
+
+aws secretsmanager create-secret \
+  --name /options-advisor/dev/discord-webhook-url \
+  --secret-string 'YOUR_DISCORD_WEBHOOK_URL' \
   --region us-east-1
 ```
 
@@ -377,8 +406,9 @@ reports/{YYYY-MM-DD}.md
 1. Reads the Markdown report from S3.
 2. Creates a 7-day pre-signed S3 URL.
 3. Sends the report by SES email.
-4. Writes report metadata to DynamoDB.
-5. Stores IV history snapshots for future comparison.
+4. Posts the report to Discord using `/options-advisor/{stage}/discord-webhook-url`.
+5. Writes report metadata to DynamoDB.
+6. Stores IV history snapshots for future comparison.
 
 The email sender and recipient are configured in `infrastructure/lib/config.ts`.
 

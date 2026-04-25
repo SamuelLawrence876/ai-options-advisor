@@ -82,7 +82,9 @@ describe('classifyMarketTrend', () => {
 
 describe('computeMaxLoss', () => {
   it('COVERED_CALL uses cost basis minus premium', () => {
-    expect(computeMaxLoss('COVERED_CALL', { costBasis: 100, strike: 110, premiumCollected: 2 })).toBe(9800);
+    expect(
+      computeMaxLoss('COVERED_CALL', { costBasis: 100, strike: 110, premiumCollected: 2 }),
+    ).toBe(9800);
   });
 
   it('COVERED_CALL falls back to strike when no cost basis', () => {
@@ -90,7 +92,15 @@ describe('computeMaxLoss', () => {
   });
 
   it('PUT_CREDIT_SPREAD uses spread width minus premium', () => {
-    expect(computeMaxLoss('PUT_CREDIT_SPREAD', { spreadWidth: 5, strike: 100, premiumCollected: 1 })).toBe(400);
+    expect(
+      computeMaxLoss('PUT_CREDIT_SPREAD', { spreadWidth: 5, strike: 100, premiumCollected: 1 }),
+    ).toBe(400);
+  });
+
+  it('PUT_CREDIT_SPREAD does not return negative max loss for invalid credits', () => {
+    expect(
+      computeMaxLoss('PUT_CREDIT_SPREAD', { spreadWidth: 5, strike: 100, premiumCollected: 6 }),
+    ).toBe(0);
   });
 
   it('CSP uses strike minus premium', () => {
@@ -115,6 +125,10 @@ describe('computeRobp', () => {
 
   it('returns 0 when BPR is zero', () => {
     expect(computeRobp(1, 0, 30)).toBe(0);
+  });
+
+  it('returns 0 when BPR is negative', () => {
+    expect(computeRobp(1, -100, 30)).toBe(0);
   });
 });
 

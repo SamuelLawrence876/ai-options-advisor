@@ -28,6 +28,20 @@ function withTickerAnalysisMetrics(pick: TopPick, analysis: TickerAnalysis): Top
   };
 }
 
+function isTopPickEligible(analysis: TickerAnalysis): boolean {
+  return (
+    analysis.recommendation !== 'SKIP' &&
+    analysis.recommendation !== 'WATCH' &&
+    Number.isFinite(analysis.maxLoss) &&
+    Number.isFinite(analysis.buyingPowerRequired) &&
+    Number.isFinite(analysis.annualisedYield) &&
+    Number.isFinite(analysis.robpAnnualised) &&
+    (analysis.maxLoss ?? 0) > 0 &&
+    (analysis.buyingPowerRequired ?? 0) > 0 &&
+    (analysis.robpAnnualised ?? 0) > 0
+  );
+}
+
 export function withTopPickMetrics(
   synthesis: PortfolioSynthesis,
   tickerAnalyses: TickerAnalysis[],
@@ -36,9 +50,10 @@ export function withTopPickMetrics(
 
   return {
     ...synthesis,
-    topPicks: synthesis.topPicks.map(pick => {
+    topPicks: synthesis.topPicks.flatMap(pick => {
       const analysis = analysesBySymbol.get(pick.symbol);
-      return analysis ? withTickerAnalysisMetrics(pick, analysis) : pick;
+      if (!analysis || !isTopPickEligible(analysis)) return [];
+      return [withTickerAnalysisMetrics(pick, analysis)];
     }),
   };
 }
