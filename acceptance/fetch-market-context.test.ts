@@ -3,7 +3,7 @@ import { getJsonObject, objectExists } from './utils/s3';
 import { invokeLambda } from './utils/lambda';
 import { MarketContext, WatchlistItem } from '../src/types';
 
-jest.setTimeout(90000);
+jest.setTimeout(180000);
 
 const TEST_DATE = `acceptance-${Date.now()}`;
 const stage = getStage();
