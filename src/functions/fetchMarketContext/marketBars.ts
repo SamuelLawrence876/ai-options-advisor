@@ -1,4 +1,5 @@
 import { OhlcvBar } from '../../types';
+import { fetchCboeVix } from '../../utils/clients/cboe';
 import { fetchFinnhubQuote } from '../../utils/clients/finnhub';
 import { fetchPolygonOhlcv } from '../../utils/clients/polygon';
 
@@ -21,7 +22,7 @@ export async function fetchMarketBars(
     fetchPolygonOhlcv('QQQ', from, to, polygonKey),
     fetchFinnhubQuote('SPY', finnhubKey),
     fetchFinnhubQuote('QQQ', finnhubKey),
-    fetchFinnhubQuote('^VIX', finnhubKey),
+    fetchCboeVix(),
   ]);
   return { spyBars, qqqBars, vixPrice, spyPrice, qqqPrice };
 }
