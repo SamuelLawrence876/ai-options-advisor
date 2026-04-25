@@ -15,7 +15,6 @@ permissions:
   pull-requests: write # PR comment with stack URL
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   STACK_BASE_NAME: options-advisor # must match the default in infrastructure/bin/app.ts
 
 jobs:
@@ -67,15 +66,15 @@ jobs:
       STAGE: ${{ needs.resolve-stage.outputs.stage }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'npm'
 
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: us-east-1
@@ -99,7 +98,7 @@ jobs:
         run: echo "api-url=$(jq -r '.[keys[0]].ApiUrl' cdk-outputs.json)" >> "$GITHUB_OUTPUT"
 
       - name: Post API URL to PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -172,15 +171,15 @@ jobs:
       STAGE: ${{ needs.resolve-stage.outputs.stage }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '24'
           cache: 'npm'
 
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: us-east-1
