@@ -12,7 +12,7 @@ export interface FetchOptionsDataProps {
   stage: string;
   bucket: IBucket;
   watchlistTable: ITable;
-  flashAlphaApiKey: ISecret;
+  marketDataApiToken: ISecret;
 }
 
 export class FetchOptionsData extends Construct {
@@ -21,12 +21,12 @@ export class FetchOptionsData extends Construct {
   constructor(scope: Construct, id: string, props: FetchOptionsDataProps) {
     super(scope, id);
 
-    const { stage, bucket, watchlistTable, flashAlphaApiKey } = props;
+    const { stage, bucket, watchlistTable, marketDataApiToken } = props;
 
     this.fn = new NodejsFunction(this, 'Function', {
       functionName: addStagePrefix(stage, 'fetch-options-data'),
       description:
-        'Fetches options data (IV rank, Greeks, vol surface, key levels) per ticker from FlashAlpha and stores raw JSON to S3',
+        'Fetches options chain quotes, greeks, IV and liquidity per ticker from MarketData.app and stores raw JSON to S3',
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
       entry: path.join(__dirname, '../../../../src/functions/fetchOptionsData/index.ts'),
@@ -38,13 +38,13 @@ export class FetchOptionsData extends Construct {
         STAGE: stage,
         BUCKET_NAME: bucket.bucketName,
         WATCHLIST_TABLE: watchlistTable.tableName,
-        FLASH_ALPHA_SECRET_ARN: flashAlphaApiKey.secretName,
+        MARKET_DATA_SECRET_ARN: marketDataApiToken.secretName,
       },
       bundling: { minify: true, sourceMap: true },
     });
 
     bucket.grantReadWrite(this.fn);
     watchlistTable.grantReadData(this.fn);
-    flashAlphaApiKey.grantRead(this.fn);
+    marketDataApiToken.grantRead(this.fn);
   }
 }

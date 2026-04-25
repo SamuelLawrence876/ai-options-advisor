@@ -1,5 +1,5 @@
 import { MarketContext, WatchlistItem } from '../../types';
-import { fetchFlashAlphaOptions } from '../../utils/clients/flashAlpha';
+import { fetchMarketDataOptions } from '../../utils/clients/marketData';
 import { info } from '../../utils/logger';
 import { putJson } from '../../utils/aws/s3';
 import { getSecretValue } from '../../utils/aws/secrets';
@@ -12,15 +12,16 @@ interface FetchOptionsDataEvent {
 
 export const handler = async (event: FetchOptionsDataEvent): Promise<FetchOptionsDataEvent> => {
   const bucketName = process.env.BUCKET_NAME!;
-  const flashAlphaArn = process.env.FLASH_ALPHA_SECRET_ARN!;
+  const marketDataArn = process.env.MARKET_DATA_SECRET_ARN!;
 
   const { ticker, date } = event;
   const symbol = ticker.symbol;
 
   info('fetch-options-data started', { symbol, date });
 
-  const apiKey = await getSecretValue(flashAlphaArn);
-  const optionsData = await fetchFlashAlphaOptions(symbol, apiKey);
+  const token = await getSecretValue(marketDataArn);
+  const targetDte = Math.round((ticker.minDte + ticker.maxDte) / 2);
+  const optionsData = await fetchMarketDataOptions(symbol, token, targetDte);
 
   await putJson(bucketName, `raw-data/${date}/${symbol}/options.json`, optionsData);
 

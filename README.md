@@ -180,6 +180,7 @@ Production secret names:
 
 ```text
 /options-advisor/production/flash-alpha-api-key
+/options-advisor/production/market-data-api-token
 /options-advisor/production/finnhub-api-key
 /options-advisor/production/polygon-api-key
 ```
@@ -188,6 +189,7 @@ Dev secret names:
 
 ```text
 /options-advisor/dev/flash-alpha-api-key
+/options-advisor/dev/market-data-api-token
 /options-advisor/dev/finnhub-api-key
 /options-advisor/dev/polygon-api-key
 ```
@@ -199,17 +201,22 @@ login
 
 aws secretsmanager create-secret \
   --name /options-advisor/dev/flash-alpha-api-key \
-  --secret-string '{"apiKey":"YOUR_FLASHALPHA_KEY"}' \
+  --secret-string 'YOUR_FLASHALPHA_KEY' \
+  --region us-east-1
+
+aws secretsmanager create-secret \
+  --name /options-advisor/dev/market-data-api-token \
+  --secret-string 'YOUR_MARKETDATA_TOKEN' \
   --region us-east-1
 
 aws secretsmanager create-secret \
   --name /options-advisor/dev/finnhub-api-key \
-  --secret-string '{"apiKey":"YOUR_FINNHUB_KEY"}' \
+  --secret-string 'YOUR_FINNHUB_KEY' \
   --region us-east-1
 
 aws secretsmanager create-secret \
   --name /options-advisor/dev/polygon-api-key \
-  --secret-string '{"apiKey":"YOUR_POLYGON_KEY"}' \
+  --secret-string 'YOUR_POLYGON_KEY' \
   --region us-east-1
 ```
 

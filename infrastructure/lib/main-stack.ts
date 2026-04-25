@@ -37,7 +37,7 @@ export class OptionsAnalysisStack extends Stack {
       stage,
       bucket: storage.bucket,
       watchlistTable: tables.watchlistTable,
-      flashAlphaApiKey: secrets.flashAlphaApiKey,
+      marketDataApiToken: secrets.marketDataApiToken,
     });
 
     const fetchFundamentals = new FetchFundamentals(this, 'FetchFundamentals', {
