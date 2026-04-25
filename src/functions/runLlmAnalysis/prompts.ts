@@ -33,7 +33,8 @@ Return a JSON object with this exact structure:
   "robpAnnualised": number or null
 }
 
-If recommending SKIP, set adjustedStrike and all numeric fields to null. Explain clearly in reasoning what needs to change for this to become a trade.
+If no candidate trade is present, set adjustedStrike and all numeric fields to null.
+If a candidate trade is present but you recommend SKIP, preserve its numeric fields so the report can show why the trade failed.
 If recommending WATCH, briefly note what catalyst or setup you are waiting for.`;
 
 export const PORTFOLIO_SYNTHESIS_PROMPT = (

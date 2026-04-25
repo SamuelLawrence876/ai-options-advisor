@@ -7,6 +7,7 @@ import {
 } from '../../types';
 import { invokeModel } from '../../utils/aws/bedrock';
 import { getHumanContext } from '../../utils/aws/dynamodb';
+import { withCandidateMetrics, withTopPickMetrics } from '../../utils/analysisMetrics';
 import { formatDossier } from '../../utils/dossier';
 import { info } from '../../utils/logger';
 import { PORTFOLIO_SYNTHESIS_PROMPT, SYSTEM_PROMPT, TICKER_ANALYSIS_PROMPT } from './prompts';
@@ -56,7 +57,10 @@ export const handler = async (
     const dossier = formatDossier(enriched, marketContext, humanContext);
     const prompt = TICKER_ANALYSIS_PROMPT(dossier);
 
-    const analysis = await invokeModel<TickerAnalysis>(prompt, SYSTEM_PROMPT);
+    const analysis = withCandidateMetrics(
+      await invokeModel<TickerAnalysis>(prompt, SYSTEM_PROMPT),
+      enriched,
+    );
 
     info('run-llm-analysis stage 1 complete', {
       symbol,
@@ -72,7 +76,10 @@ export const handler = async (
   info('run-llm-analysis stage 2 started', { date, count: tickerAnalyses.length });
 
   const prompt = PORTFOLIO_SYNTHESIS_PROMPT(tickerAnalyses, marketContext);
-  const synthesis = await invokeModel<PortfolioSynthesis>(prompt, SYSTEM_PROMPT);
+  const synthesis = withTopPickMetrics(
+    await invokeModel<PortfolioSynthesis>(prompt, SYSTEM_PROMPT),
+    tickerAnalyses,
+  );
 
   info('run-llm-analysis stage 2 complete', {
     date,

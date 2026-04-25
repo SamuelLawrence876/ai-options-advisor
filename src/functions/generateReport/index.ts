@@ -1,4 +1,5 @@
 import { EnrichedTicker, MarketContext, PortfolioSynthesis, TickerAnalysis } from '../../types';
+import { withCandidateMetrics, withTopPickMetrics } from '../../utils/analysisMetrics';
 import { info } from '../../utils/logger';
 import { putMarkdown } from '../../utils/aws/s3';
 import { buildReport } from './templates';
@@ -26,12 +27,34 @@ export const handler = async (event: GenerateReportEvent): Promise<GenerateRepor
 
   info('generate-report started', { date, topPickCount: synthesis.topPicks?.length ?? 0 });
 
-  const report = buildReport(synthesis, tickerAnalyses, enrichedTickers, date, marketContext);
+  const enrichedBySymbol = new Map(
+    enrichedTickers.map(enriched => [enriched.ticker.symbol, enriched] as const),
+  );
+  const tickerAnalysesWithMetrics = tickerAnalyses.map(analysis => {
+    const enriched = enrichedBySymbol.get(analysis.symbol);
+    return enriched ? withCandidateMetrics(analysis, enriched) : analysis;
+  });
+  const synthesisWithMetrics = withTopPickMetrics(synthesis, tickerAnalysesWithMetrics);
+
+  const report = buildReport(
+    synthesisWithMetrics,
+    tickerAnalysesWithMetrics,
+    enrichedTickers,
+    date,
+    marketContext,
+  );
 
   const reportKey = `reports/${date}/full-report.md`;
   await putMarkdown(bucketName, reportKey, report);
 
   info('generate-report complete', { date, reportKey });
 
-  return { reportKey, synthesis, tickerAnalyses, enrichedTickers, date, marketContext };
+  return {
+    reportKey,
+    synthesis: synthesisWithMetrics,
+    tickerAnalyses: tickerAnalysesWithMetrics,
+    enrichedTickers,
+    date,
+    marketContext,
+  };
 };
