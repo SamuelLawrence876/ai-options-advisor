@@ -26,19 +26,19 @@ export class Secrets extends Construct {
     this.flashAlphaApiKey = new Secret(this, 'FlashAlphaApiKey', {
       secretName: config.secrets.flashAlphaApiKey(stage),
       secretStringValue: SecretValue.unsafePlainText(flashAlphaValue),
-      removalPolicy: RemovalPolicy.RETAIN,
+      removalPolicy: RemovalPolicy.DESTROY,
     });
 
     this.finnhubApiKey = new Secret(this, 'FinnhubApiKey', {
       secretName: config.secrets.finnhubApiKey(stage),
       secretStringValue: SecretValue.unsafePlainText(finnhubValue),
-      removalPolicy: RemovalPolicy.RETAIN,
+      removalPolicy: RemovalPolicy.DESTROY,
     });
 
     this.polygonApiKey = new Secret(this, 'PolygonApiKey', {
       secretName: config.secrets.polygonApiKey(stage),
       secretStringValue: SecretValue.unsafePlainText(polygonValue),
-      removalPolicy: RemovalPolicy.RETAIN,
+      removalPolicy: RemovalPolicy.DESTROY,
     });
   }
 }
