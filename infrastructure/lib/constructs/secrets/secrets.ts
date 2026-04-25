@@ -1,3 +1,4 @@
+import { RemovalPolicy, SecretValue } from 'aws-cdk-lib';
 import { ISecret, Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 import { config } from '../../config';
@@ -18,22 +19,26 @@ export class Secrets extends Construct {
 
     const { stage } = props;
 
-    this.flashAlphaApiKey = Secret.fromSecretNameV2(
-      this,
-      'FlashAlphaApiKey',
-      config.secrets.flashAlphaApiKey(stage),
-    );
+    const flashAlphaValue: string = String(this.node.tryGetContext('flashAlphaApiKey') ?? 'placeholder');
+    const finnhubValue: string = String(this.node.tryGetContext('finnhubApiKey') ?? 'placeholder');
+    const polygonValue: string = String(this.node.tryGetContext('polygonApiKey') ?? 'placeholder');
 
-    this.finnhubApiKey = Secret.fromSecretNameV2(
-      this,
-      'FinnhubApiKey',
-      config.secrets.finnhubApiKey(stage),
-    );
+    this.flashAlphaApiKey = new Secret(this, 'FlashAlphaApiKey', {
+      secretName: config.secrets.flashAlphaApiKey(stage),
+      secretStringValue: SecretValue.unsafePlainText(flashAlphaValue),
+      removalPolicy: RemovalPolicy.RETAIN,
+    });
 
-    this.polygonApiKey = Secret.fromSecretNameV2(
-      this,
-      'PolygonApiKey',
-      config.secrets.polygonApiKey(stage),
-    );
+    this.finnhubApiKey = new Secret(this, 'FinnhubApiKey', {
+      secretName: config.secrets.finnhubApiKey(stage),
+      secretStringValue: SecretValue.unsafePlainText(finnhubValue),
+      removalPolicy: RemovalPolicy.RETAIN,
+    });
+
+    this.polygonApiKey = new Secret(this, 'PolygonApiKey', {
+      secretName: config.secrets.polygonApiKey(stage),
+      secretStringValue: SecretValue.unsafePlainText(polygonValue),
+      removalPolicy: RemovalPolicy.RETAIN,
+    });
   }
 }

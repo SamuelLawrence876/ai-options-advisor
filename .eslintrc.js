@@ -51,6 +51,8 @@ module.exports = {
       files: 'infrastructure/**/*.ts',
       rules: {
         'no-new': 'off',
+        '@typescript-eslint/no-unsafe-assignment': 'off',
+        '@typescript-eslint/no-unsafe-call': 'off',
       },
     },
   ],
