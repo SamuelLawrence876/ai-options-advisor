@@ -20,16 +20,23 @@ function toPolygonTicker(symbol: string): string {
   return symbol;
 }
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export async function fetchPolygonOhlcv(
   symbol: string,
   fromDate: string,
   toDate: string,
   apiKey: string,
+  attempt = 0,
 ): Promise<OhlcvBar[]> {
   const ticker = toPolygonTicker(symbol);
   const url = `https://api.polygon.io/v2/aggs/ticker/${encodeURIComponent(ticker)}/range/1/day/${fromDate}/${toDate}?adjusted=true&sort=asc&limit=365&apiKey=${apiKey}`;
 
   const response = await fetch(url);
+  if (response.status === 429 && attempt < 4) {
+    await sleep(15000 * (attempt + 1));
+    return fetchPolygonOhlcv(symbol, fromDate, toDate, apiKey, attempt + 1);
+  }
   if (!response.ok) {
     const body = await response.text().catch(() => '');
     throw new Error(`Polygon HTTP ${response.status} for ${symbol}: ${body}`);

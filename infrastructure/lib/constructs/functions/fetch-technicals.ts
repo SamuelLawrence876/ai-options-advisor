@@ -32,7 +32,7 @@ export class FetchTechnicals extends Construct {
       architecture: Architecture.ARM_64,
       entry: path.join(__dirname, '../../../../src/functions/fetchTechnicals/index.ts'),
       handler: 'handler',
-      timeout: Duration.minutes(1),
+      timeout: Duration.minutes(3),
       memorySize: 256,
       environment: {
         SERVICE_NAME: addStagePrefix(stage, 'fetch-technicals'),
