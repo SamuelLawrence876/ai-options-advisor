@@ -1,7 +1,9 @@
+import optionsFixture from './fixtures/options.json';
 import { getBucketName, getRegion, getStage, resourceNames } from './utils/config';
 import { getItem, scanTable } from './utils/dynamodb';
-import { getJsonObject, listObjects, objectExists } from './utils/s3';
+import { getJsonObject, listObjects, objectExists, putJsonObject } from './utils/s3';
 import { getStateMachineArn, pollExecution, startExecution } from './utils/stepfunctions';
+import { OptionsData, WatchlistItem } from '../src/types';
 
 jest.setTimeout(25 * 60 * 1000);
 
@@ -15,6 +17,15 @@ let executionArn: string;
 
 beforeAll(async () => {
   bucket = await getBucketName(stage, region);
+  const tickers = (await scanTable<WatchlistItem>(names.watchlistTable)).filter(item => item.active);
+  await Promise.all(
+    tickers.map(ticker =>
+      putJsonObject(bucket, `raw-data/${TEST_DATE}/${ticker.symbol}/options.json`, {
+        ...(optionsFixture as OptionsData),
+        symbol: ticker.symbol,
+      }),
+    ),
+  );
   const smArn = await getStateMachineArn(names.stateMachineName);
   executionArn = await startExecution(smArn, { date: TEST_DATE });
   console.log(`Pipeline started — execution: ${executionArn}`);

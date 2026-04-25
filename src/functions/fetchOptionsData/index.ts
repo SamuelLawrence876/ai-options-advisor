@@ -1,7 +1,7 @@
-import { MarketContext, WatchlistItem } from '../../types';
+import { MarketContext, OptionsData, WatchlistItem } from '../../types';
 import { fetchMarketDataOptions } from '../../utils/clients/marketData';
 import { info } from '../../utils/logger';
-import { putJson } from '../../utils/aws/s3';
+import { getJson, putJson } from '../../utils/aws/s3';
 import { getSecretValue } from '../../utils/aws/secrets';
 
 interface FetchOptionsDataEvent {
@@ -16,14 +16,21 @@ export const handler = async (event: FetchOptionsDataEvent): Promise<FetchOption
 
   const { ticker, date } = event;
   const symbol = ticker.symbol;
+  const optionsKey = `raw-data/${date}/${symbol}/options.json`;
 
   info('fetch-options-data started', { symbol, date });
+
+  const cachedOptions = await getJson<OptionsData>(bucketName, optionsKey).catch(() => undefined);
+  if (cachedOptions) {
+    info('fetch-options-data cache hit', { symbol, date, ivRank: cachedOptions.ivRank });
+    return event;
+  }
 
   const token = await getSecretValue(marketDataArn);
   const targetDte = Math.round((ticker.minDte + ticker.maxDte) / 2);
   const optionsData = await fetchMarketDataOptions(symbol, token, targetDte);
 
-  await putJson(bucketName, `raw-data/${date}/${symbol}/options.json`, optionsData);
+  await putJson(bucketName, optionsKey, optionsData);
 
   info('fetch-options-data complete', { symbol, date, ivRank: optionsData.ivRank });
 

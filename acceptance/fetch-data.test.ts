@@ -1,8 +1,9 @@
 import marketContextFixture from './fixtures/market-context.json';
+import optionsFixture from './fixtures/options.json';
 import watchlistItemFixture from './fixtures/watchlist-item.json';
 import { getBucketName, getRegion, getStage, resourceNames } from './utils/config';
 import { invokeLambda } from './utils/lambda';
-import { getJsonObject, objectExists } from './utils/s3';
+import { getJsonObject, objectExists, putJsonObject } from './utils/s3';
 import { FundamentalsData, OptionsData, TechnicalsData, WatchlistItem } from '../src/types';
 
 jest.setTimeout(120000);
@@ -23,6 +24,7 @@ let bucket: string;
 
 beforeAll(async () => {
   bucket = await getBucketName(stage, region);
+  await putJsonObject(bucket, `raw-data/${TEST_DATE}/${ticker.symbol}/options.json`, optionsFixture);
 });
 
 describe('fetchOptionsData Lambda', () => {
