@@ -82,15 +82,11 @@ export const handler = async (
     .filter((etf): etf is string => Boolean(etf));
 
   const sectorIvs: Record<string, number> = {};
-  await Promise.allSettled(
+  await Promise.all(
     requiredEtfs.map(async etf => {
-      try {
-        const iv = await fetchFlashAlphaIv(etf, flashAlphaKey);
-        const sector = Object.entries(SECTOR_ETF_MAP).find(([, e]) => e === etf)?.[0];
-        if (sector) sectorIvs[sector] = iv;
-      } catch (err) {
-        error(`Failed to fetch sector IV for ${etf}`, err as Error);
-      }
+      const iv = await fetchFlashAlphaIv(etf, flashAlphaKey);
+      const sector = Object.entries(SECTOR_ETF_MAP).find(([, e]) => e === etf)?.[0];
+      if (sector) sectorIvs[sector] = iv;
     }),
   );
 

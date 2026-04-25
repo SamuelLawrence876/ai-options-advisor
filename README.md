@@ -1,77 +1,223 @@
 # options-advisor
 
-A weekly AI-powered report that tells you which options trades on your personal stock watchlist are worth making — and why — ranked by return on buying power.
+📈 A weekly AI-powered options report for a personal stock watchlist.
 
-See [PLAN.md](./PLAN.md) for the full build plan.
+The pipeline collects market data, enriches each ticker into structured trade signals, asks Claude via Amazon Bedrock for analysis, and delivers a Markdown report ranked by return on buying power.
+
+See [PLAN.md](./PLAN.md) for the broader design notes and future roadmap.
 
 ---
 
-## What it does
+## ✨ What It Does
 
-## Project structure
+`options-advisor` is a scheduled AWS pipeline for premium-selling trade research. It does not place trades, connect to a broker, or manage live positions. It prepares a decision-support report so you can review candidate trades manually.
 
+Each run:
+
+1. 🌎 Loads active tickers from DynamoDB and fetches market context.
+2. 📊 Pulls options, fundamentals, technicals, VIX, SPY/QQQ trend, sector IV, and earnings calendar data.
+3. 🧮 Enriches every ticker with signals such as IV rank, volatility risk premium, earnings risk, ATR, liquidity, candidate strikes, and return on buying power.
+4. 🤖 Sends viable candidates to Claude through Bedrock for per-ticker analysis.
+5. 🧠 Runs a portfolio-level synthesis that ranks the best opportunities.
+6. 📝 Writes a Markdown report to S3.
+7. 📬 Sends the report by SES email and stores report metadata plus IV snapshots in DynamoDB.
+
+The default schedule is every Monday at 06:00 UTC.
+
+---
+
+## 🧱 Architecture
+
+The current implementation is TypeScript on AWS CDK v2.
+
+```text
+EventBridge Scheduler
+  -> Step Functions state machine
+    -> fetch-market-context
+    -> per-ticker parallel data fetch
+      -> fetch-options-data
+      -> fetch-fundamentals
+      -> fetch-technicals
+    -> enrich-and-score
+    -> run-llm-analysis, stage 1 per ticker
+    -> run-llm-analysis, stage 2 portfolio synthesis
+    -> generate-report
+    -> deliver-report
 ```
+
+Core AWS services:
+
+- 🪣 S3 stores raw market data, enriched ticker data, and generated reports.
+- 🧾 DynamoDB stores the watchlist, report metadata, IV history, and human context.
+- 🔐 Secrets Manager stores external API keys.
+- 🪜 Step Functions orchestrates the pipeline.
+- ⚡ Lambda runs each pipeline step.
+- 🧠 Bedrock invokes Claude for analysis.
+- 📮 SES sends the finished report by email.
+- ⏰ EventBridge triggers the weekly run.
+
+---
+
+## 📁 Project Structure
+
+```text
 infrastructure/
   bin/app.ts                              CDK entry point
   lib/
-    config.ts                             Stack name, region, Secrets Manager paths
-    main-stack.ts                         Wires all constructs together
+    config.ts                             Stack name, region, email addresses, secret paths
+    main-stack.ts                         Wires storage, tables, secrets, Lambdas, state machine, scheduler
+    utils/naming.ts                       Stage-prefixed resource names
     constructs/
       data/
-        storage.ts                        S3 data bucket with lifecycle rules
-        tables.ts                         4 DynamoDB tables
+        storage.ts                        S3 bucket with lifecycle rules
+        tables.ts                         DynamoDB tables
       secrets/
-        secrets.ts                        API key secrets (FlashAlpha, Alpha Vantage)
+        secrets.ts                        References API key secrets
       functions/
-        fetch-options-data.ts             Lambda: IV rank, Greeks, vol surface
-        fetch-fundamentals.ts             Lambda: earnings, dividends, analyst ratings
-        fetch-technicals.ts               Lambda: trend, moving averages, ATR
-        fetch-market-context.ts           Lambda: VIX, SPY/QQQ, sector ETF IV
-        enrich-and-score.ts               Lambda: score each ticker, compute ROBP
-        run-llm-analysis.ts               Lambda: Claude analysis via Bedrock
-        generate-report.ts                Lambda: render HTML report
-        deliver-report.ts                 Lambda: store to S3 and send via email
+        fetch-options-data.ts             Lambda construct for FlashAlpha options data
+        fetch-fundamentals.ts             Lambda construct for Finnhub fundamentals
+        fetch-technicals.ts               Lambda construct for Finnhub and Polygon technicals
+        fetch-market-context.ts           Lambda construct for market regime data
+        enrich-and-score.ts               Lambda construct for scoring and candidate selection
+        run-llm-analysis.ts               Lambda construct for Bedrock/Claude analysis
+        generate-report.ts                Lambda construct for Markdown report generation
+        deliver-report.ts                 Lambda construct for SES delivery and DynamoDB writes
       state-machine/
-        state-machine.ts                  Step Functions orchestrator
+        state-machine.ts                  Step Functions pipeline definition
       scheduler/
-        scheduler.ts                      EventBridge cron — Monday 06:00 UTC
+        scheduler.ts                      EventBridge cron, Monday 06:00 UTC
 src/
   functions/                              Lambda handler implementations
-  utils/logger.ts                         Structured JSON logger
-.github/workflows/                        CI/CD
+  types/                                  Shared domain types
+  utils/                                  AWS helpers, API clients, metrics, dates, dossier formatting
+acceptance/                               AWS-backed acceptance tests and fixtures
+scripts/                                  Manual run and watchlist seed scripts
+.github/workflows/                        CI, deployment, and PR environment workflows
 ```
 
 ---
 
-## S3 bucket layout
+## 🪣 S3 Bucket Layout
 
-```
-options-analysis-{account}-{region}-{stage}/
-  raw-data/
-    {YYYY-MM-DD}/
-      {TICKER}/
-        options.json
-        fundamentals.json
-        technicals.json
-        market-context.json
-  enriched/
-    {YYYY-MM-DD}/
-      {TICKER}.json
-  prompts/
-    system-prompt.txt
-    ticker-analysis-template.txt
-    portfolio-synthesis-template.txt
-  reports/
-    {YYYY-MM-DD}/
-      full-report.html
-      summary.json
+Buckets are named:
+
+```text
+options-analysis-{account}-{region}-{stage}
 ```
 
-Raw data is never overwritten mid-run — if a run fails you can reprocess from S3 without re-fetching from paid APIs. `raw-data/` expires after 90 days in production (14 days in dev).
+The current code writes these keys:
+
+```text
+raw-data/
+  {YYYY-MM-DD}/
+    market-context.json
+    earnings-calendar.json
+    {TICKER}/
+      options.json
+      fundamentals.json
+      technicals.json
+enriched/
+  {YYYY-MM-DD}/
+    {TICKER}.json
+reports/
+  {YYYY-MM-DD}/
+    full-report.md
+```
+
+Raw data is intentionally preserved for the run date so failed downstream steps can be replayed without refetching paid API data. `raw-data/` expires after 90 days in production and 14 days in dev.
+
+Prompts are currently compiled into `src/functions/runLlmAnalysis/prompts.ts`; they are not loaded from S3.
 
 ---
 
-## Getting started
+## 🧾 DynamoDB Tables
+
+Tables are stage-prefixed:
+
+- `production-watchlist` or `dev-watchlist`
+- `production-iv-history` or `dev-iv-history`
+- `production-reports` or `dev-reports`
+- `production-human-context` or `dev-human-context`
+
+Production tables use point-in-time recovery and retain data when the stack is removed. Dev tables are destroyed with the stack.
+
+### Watchlist Item Shape
+
+Watchlist items use camelCase fields:
+
+```json
+{
+  "symbol": "AAPL",
+  "strategyPref": "COVERED_CALL",
+  "sharesHeld": 100,
+  "costBasis": 165,
+  "targetYieldPct": 8,
+  "minDte": 21,
+  "maxDte": 45,
+  "active": true,
+  "sector": "Technology",
+  "notes": "Core long position, only sell calls above cost basis"
+}
+```
+
+Supported `strategyPref` values:
+
+- `COVERED_CALL`
+- `CSP`
+- `PUT_CREDIT_SPREAD`
+- `IRON_CONDOR`
+- `ANY`
+
+Set `active` to `false` to pause a ticker without deleting it.
+
+---
+
+## 🔐 Secrets
+
+The stack references existing Secrets Manager secrets by name. Create these before deploying, or make sure they already exist in the target account and region.
+
+Production secret names:
+
+```text
+/options-advisor/production/flash-alpha-api-key
+/options-advisor/production/finnhub-api-key
+/options-advisor/production/polygon-api-key
+```
+
+Dev secret names:
+
+```text
+/options-advisor/dev/flash-alpha-api-key
+/options-advisor/dev/finnhub-api-key
+/options-advisor/dev/polygon-api-key
+```
+
+Example:
+
+```bash
+login
+
+aws secretsmanager create-secret \
+  --name /options-advisor/dev/flash-alpha-api-key \
+  --secret-string '{"apiKey":"YOUR_FLASHALPHA_KEY"}' \
+  --region us-east-1
+
+aws secretsmanager create-secret \
+  --name /options-advisor/dev/finnhub-api-key \
+  --secret-string '{"apiKey":"YOUR_FINNHUB_KEY"}' \
+  --region us-east-1
+
+aws secretsmanager create-secret \
+  --name /options-advisor/dev/polygon-api-key \
+  --secret-string '{"apiKey":"YOUR_POLYGON_KEY"}' \
+  --region us-east-1
+```
+
+If a secret already exists, update it with `aws secretsmanager put-secret-value`.
+
+---
+
+## 🚀 Getting Started
 
 ### 1. Install dependencies
 
@@ -79,78 +225,224 @@ Raw data is never overwritten mid-run — if a run fails you can reprocess from 
 npm install
 ```
 
-### 2. Run tests
+The project is configured for Node.js 24 and npm 11+.
+
+### 2. Run local checks
 
 ```bash
+npm run lint
+npm run check-types
 npm test
+npm run test:infra
 ```
 
-### 3. Bootstrap and deploy
+Useful test commands:
 
 ```bash
-login                           # authenticate to AWS
-npx cdk bootstrap               # first time only, per account/region
-npx cdk deploy                  # production stack
-npx cdk deploy -c stackType=dev # dev stack
+npm run test:acceptance
+npm run test:acceptance:pipeline
+npm run test:acceptance:lambdas
 ```
 
-### 4. Populate API keys
+Acceptance tests use deployed AWS resources, so authenticate first and set the relevant stage/region environment variables when needed.
 
-After the first deploy, add your keys to Secrets Manager:
+### 3. Bootstrap CDK
 
 ```bash
-aws secretsmanager put-secret-value \
-  --secret-id /options-advisor/production/flash-alpha-api-key \
-  --secret-string '{"apiKey":"YOUR_KEY"}'
-
-aws secretsmanager put-secret-value \
-  --secret-id /options-advisor/production/alpha-vantage-api-key \
-  --secret-string '{"apiKey":"YOUR_KEY"}'
+login
+npx cdk bootstrap
 ```
 
-### 5. Seed the watchlist
+### 4. Deploy
 
-Add tickers to the `production-watchlist` DynamoDB table:
+Production:
 
-```json
-{
-  "symbol": "AAPL",
-  "strategy_pref": "COVERED_CALL",
-  "cost_basis": 165.0,
-  "target_yield_pct": 1.5,
-  "max_dte": 45,
-  "min_dte": 21,
-  "active": true,
-  "notes": "hold 200 shares"
-}
+```bash
+npm run deploy
 ```
 
+Dev:
+
+```bash
+npm run deploy:dev
+```
+
+Equivalent raw CDK commands:
+
+```bash
+npx cdk deploy --context stackType=prod
+npx cdk deploy --context stackType=dev
+```
+
+### 5. Seed the Watchlist
+
+The seed script writes sample tickers into the stage watchlist table.
+
+Production:
+
+```bash
+npm run seed
+```
+
+Dev:
+
+```bash
+npm run seed:dev
+```
+
+The script currently seeds AAPL, MSFT, NVDA, JPM, XOM, UNH, AMZN, META, BRK.B, and PLTR.
+
+### 6. Run an Analysis Manually
+
+Production, today’s date:
+
+```bash
+npm run analyse
+```
+
+Dev:
+
+```bash
+npm run analyse:dev
+```
+
+Specific date:
+
+```bash
+./scripts/run-analysis.sh --stage dev --date 2026-04-25
+```
+
+By default, the script waits for Step Functions to finish and downloads the generated report into `reports/{YYYY-MM-DD}/full-report.md`.
+
 ---
 
-## CI/CD
+## 📡 Data Providers
 
-| Workflow     | Trigger           | What happens                 |
-| ------------ | ----------------- | ---------------------------- |
-| `ci.yml`     | Every push and PR | Lint, type-check, unit tests |
-| `deploy.yml` | Merge to `main`   | Deploy dev, then production  |
+Current providers used by the code:
 
-Workflows use AWS OIDC — no long-lived access keys stored in GitHub. Create two GitHub Environments (`dev`, `production`) each with an `AWS_DEPLOY_ROLE_ARN` secret.
+- ⚡ FlashAlpha: options chain data, IV rank, IV percentile, 30-day IV, historical volatility, candidate strikes, Greeks, and sector ETF IV.
+- 🐦 Finnhub: current quotes, earnings calendar, dividends, analyst recommendations, and price targets.
+- 📐 Polygon: OHLCV history for technical indicators and market trend calculations.
+- 🧠 AWS Bedrock: Claude analysis and portfolio synthesis.
+- 📬 AWS SES: email delivery.
 
----
-
-## API accounts needed
-
-| Provider      | Used for                                                | Cost                                          |
-| ------------- | ------------------------------------------------------- | --------------------------------------------- |
-| FlashAlpha    | Options data — IV rank, Greeks, vol surface, key levels | Free (5 req/day) → Growth tier for >5 tickers |
-| Alpha Vantage | Price history, fundamentals, earnings calendar          | Free (25 req/day) — enough for ~15 tickers    |
-| AWS Bedrock   | Claude inference                                        | Pay-per-token — negligible at weekly cadence  |
-| AWS SES       | Email delivery                                          | Near-free at this volume                      |
+Alpha Vantage is not used by the current implementation.
 
 ---
 
-## Adding a new Lambda
+## 🧠 Analysis Flow
 
-1. Create `src/functions/{functionName}/index.ts` and export a `handler`
-2. Create `infrastructure/lib/constructs/functions/{function-name}.ts` with a `NodejsFunction` construct and the required IAM grants
-3. Instantiate it in `main-stack.ts` and pass `fn` into `PipelineStateMachine` props
+The pipeline first builds a market context object containing VIX regime, SPY/QQQ trend, overall market trend, and sector IVs.
+
+For each active ticker, it then stores:
+
+- `options.json`: IV rank, IV percentile, IV/HV, vol surface, candidate strikes, Greeks, bid/ask, open interest, and volume.
+- `fundamentals.json`: earnings date, ex-dividend date, dividend yield, price target, and analyst consensus.
+- `technicals.json`: price, 20/50-day moving averages, trend classification, ATR, and 52-week range.
+
+`enrich-and-score` combines those inputs into an enriched ticker record, including:
+
+- Volatility risk premium.
+- IV rank signal.
+- IV versus sector.
+- Earnings and ex-dividend risk.
+- ATR and 52-week high proximity.
+- Suggested strategy.
+- Candidate trade.
+- Buying power requirement.
+- Annualised yield.
+- Annualised return on buying power.
+- Liquidity flag.
+
+`run-llm-analysis` skips Bedrock calls for clear `SKIP` candidates, then asks Claude to analyze viable trades. A second Claude call synthesizes the portfolio-level ranking.
+
+---
+
+## 📬 Report Delivery
+
+`generate-report` writes a Markdown report to:
+
+```text
+reports/{YYYY-MM-DD}/full-report.md
+```
+
+`deliver-report` then:
+
+1. Reads the Markdown report from S3.
+2. Creates a 7-day pre-signed S3 URL.
+3. Sends the report by SES email.
+4. Writes report metadata to DynamoDB.
+5. Stores IV history snapshots for future comparison.
+
+The email sender and recipient are configured in `infrastructure/lib/config.ts`.
+
+---
+
+## 🛠️ Scripts
+
+Useful npm scripts:
+
+```bash
+npm run build
+npm run lint
+npm run lint:fix
+npm run check-types
+npm test
+npm run test:infra
+npm run test:acceptance
+npm run deploy
+npm run deploy:dev
+npm run diff
+npm run diff:dev
+npm run seed
+npm run seed:dev
+npm run analyse
+npm run analyse:dev
+```
+
+Shell scripts:
+
+- `scripts/seed-watchlist.sh`: seeds a watchlist table for `production` or `dev`.
+- `scripts/run-analysis.sh`: starts the Step Functions state machine and optionally waits for completion.
+
+---
+
+## 🔄 CI/CD
+
+GitHub Actions workflows:
+
+- `ci.yml`: runs lint, type-check, unit tests, and infrastructure tests on pull requests to `main` and pushes to non-main branches.
+- `deploy.yml`: runs on pushes to `main`, deploys dev, runs acceptance tests, then deploys production.
+- `pr.yml`: contains scaffolding for PR-specific ephemeral environments.
+
+Workflows use AWS OIDC, so long-lived AWS access keys are not stored in GitHub.
+
+Required GitHub environments:
+
+- `dev`
+- `production`
+- `ephemeral`, if using the PR workflow
+
+Each environment needs an `AWS_DEPLOY_ROLE_ARN` secret.
+
+Note: the current CDK app explicitly distinguishes production from dev. Review `pr.yml` before relying on ephemeral stacks, because that workflow passes an `ephemeral` context value while `infrastructure/bin/app.ts` currently maps non-production deployments to the dev stage.
+
+---
+
+## ➕ Adding a New Lambda
+
+1. Create `src/functions/{functionName}/index.ts` and export a `handler`.
+2. Create `infrastructure/lib/constructs/functions/{function-name}.ts` with a `NodejsFunction`.
+3. Grant only the S3, DynamoDB, Secrets Manager, Bedrock, or SES permissions the function needs.
+4. Instantiate the construct in `infrastructure/lib/main-stack.ts`.
+5. Pass the function into `PipelineStateMachine` props if it belongs in the pipeline.
+6. Wire the Step Functions state in `infrastructure/lib/constructs/state-machine/state-machine.ts`.
+7. Add focused unit tests and, for pipeline behavior, acceptance coverage.
+
+---
+
+## ⚠️ Current Boundaries
+
+This project is a research and reporting assistant. It does not execute trades, manage orders, rebalance a portfolio, or guarantee that external API data is complete or timely.
+
+Always review the generated report manually before making trading decisions.
