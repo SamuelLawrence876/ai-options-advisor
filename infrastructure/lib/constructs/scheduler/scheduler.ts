@@ -15,10 +15,10 @@ export class Scheduler extends Construct {
 
     const { stage, stateMachine } = props;
 
-    new Rule(this, 'WeeklySchedule', {
-      ruleName: addStagePrefix(stage, 'options-analysis-weekly'),
-      description: 'Triggers the options analysis pipeline every Monday at 06:00 UTC',
-      schedule: Schedule.cron({ minute: '0', hour: '6', weekDay: 'MON' }),
+    new Rule(this, 'WeekdaySchedule', {
+      ruleName: addStagePrefix(stage, 'options-analysis-weekday'),
+      description: 'Triggers the options analysis pipeline Monday-Friday at 06:00 UTC',
+      schedule: Schedule.cron({ minute: '0', hour: '6', weekDay: 'MON-FRI' }),
       targets: [new SfnStateMachine(stateMachine)],
     });
   }

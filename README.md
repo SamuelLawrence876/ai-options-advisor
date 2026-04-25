@@ -1,6 +1,6 @@
 # options-advisor
 
-📈 A weekly AI-powered options report for a personal stock watchlist.
+📈 A weekday AI-powered options report for a personal stock watchlist.
 
 The pipeline collects market data, enriches each ticker into structured trade signals, asks Claude via Amazon Bedrock for analysis, and delivers a Markdown report ranked by return on buying power.
 
@@ -22,7 +22,7 @@ Each run:
 6. 📝 Writes a Markdown report to S3.
 7. 📬 Sends the report by SES email and stores report metadata plus IV snapshots in DynamoDB.
 
-The default schedule is every Monday at 06:00 UTC.
+The default schedule is Monday-Friday at 06:00 UTC.
 
 ---
 
@@ -54,7 +54,7 @@ Core AWS services:
 - ⚡ Lambda runs each pipeline step.
 - 🧠 Bedrock invokes Claude for analysis.
 - 📮 SES sends the finished report by email.
-- ⏰ EventBridge triggers the weekly run.
+- ⏰ EventBridge triggers the weekday run.
 
 ---
 
@@ -85,7 +85,7 @@ infrastructure/
       state-machine/
         state-machine.ts                  Step Functions pipeline definition
       scheduler/
-        scheduler.ts                      EventBridge cron, Monday 06:00 UTC
+        scheduler.ts                      EventBridge cron, Monday-Friday 06:00 UTC
 src/
   functions/                              Lambda handler implementations
   types/                                  Shared domain types
@@ -282,7 +282,7 @@ npx cdk deploy --context stackType=dev
 
 ### 5. Seed the Watchlist
 
-The seed script writes sample tickers into the stage watchlist table.
+The seed script writes the stock symbols from `scripts/watchlist.json` into the stage watchlist table.
 
 Production:
 
@@ -296,7 +296,7 @@ Dev:
 npm run seed:dev
 ```
 
-The script currently seeds AAPL, MSFT, NVDA, JPM, XOM, UNH, AMZN, META, BRK.B, and PLTR.
+Add or remove stocks by editing the symbol list in `scripts/watchlist.json`, then rerun the seed script.
 
 ### 6. Run an Analysis Manually
 

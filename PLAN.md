@@ -2,7 +2,7 @@
 
 ## What We're Building
 
-A scheduled AWS pipeline that collects options market data, event data, technical context, and macro signals across a personal watchlist — enriches it into clean trade signals — feeds it to Claude via Bedrock — and delivers a structured weekly report of ranked options selling opportunities with full reasoning.
+A scheduled AWS pipeline that collects options market data, event data, technical context, and macro signals across a personal watchlist — enriches it into clean trade signals — feeds it to Claude via Bedrock — and delivers a structured weekday report of ranked options selling opportunities with full reasoning.
 
 **Not in scope (yet):** autonomous execution, broker API integration, live position tracking.
 
@@ -12,7 +12,7 @@ A scheduled AWS pipeline that collects options market data, event data, technica
 
 ```mermaid
 flowchart TD
-    EB[EventBridge\nMonday 06:00 UTC] -->|triggers| SF
+    EB[EventBridge\nMonday-Friday 06:00 UTC] -->|triggers| SF
 
     subgraph SF[Step Functions — ThetaStack]
         direction TB
@@ -171,7 +171,7 @@ Set up the monorepo package following existing patterns. Single CDK stack to sta
 Constructs to scaffold:
 
 - `StorageConstruct` — S3 bucket + DynamoDB tables
-- `SchedulerConstruct` — EventBridge cron rule (weekly, Monday 06:00 UTC — before US pre-market)
+- `SchedulerConstruct` — EventBridge cron rule (weekdays, 06:00 UTC — before US pre-market)
 - Placeholder Step Functions state machine
 
 ### 1.2 — DynamoDB Tables
@@ -691,7 +691,7 @@ Timestamps of each data source fetch. If any source failed or returned stale dat
 ### EventBridge Schedule
 
 ```
-cron(0 6 ? * MON *)    ← every Monday 06:00 UTC
+cron(0 6 ? * MON-FRI *)    ← Monday-Friday 06:00 UTC
 ```
 
 Also wire up a manual trigger — an SNS topic or Lambda URL — so you can kick off a run on demand without waiting for the schedule.
