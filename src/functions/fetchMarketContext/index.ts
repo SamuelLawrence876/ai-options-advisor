@@ -82,13 +82,11 @@ export const handler = async (
     .filter((etf): etf is string => Boolean(etf));
 
   const sectorIvs: Record<string, number> = {};
-  await Promise.all(
-    requiredEtfs.map(async etf => {
-      const iv = await fetchFlashAlphaIv(etf, flashAlphaKey);
-      const sector = Object.entries(SECTOR_ETF_MAP).find(([, e]) => e === etf)?.[0];
-      if (sector) sectorIvs[sector] = iv;
-    }),
-  );
+  for (const etf of requiredEtfs) {
+    const iv = await fetchFlashAlphaIv(etf, flashAlphaKey);
+    const sector = Object.entries(SECTOR_ETF_MAP).find(([, e]) => e === etf)?.[0];
+    if (sector) sectorIvs[sector] = iv;
+  }
 
   const earningsCalendar = await fetchFinnhubEarningsCalendar(
     apiDate,

@@ -100,12 +100,6 @@ export class PipelineStateMachine extends Construct {
     parallelDataFetch.branch(fetchFundamentalsStep);
     parallelDataFetch.branch(fetchTechnicalsStep);
 
-    const tickerFailedPass = new Pass(this, 'TickerDataFetchFailed', {
-      comment: 'Record ticker failure and continue — does not abort the run',
-    });
-
-    parallelDataFetch.addCatch(tickerFailedPass, { resultPath: '$.error' });
-
     const mapDataCollection = new Map(this, 'MapDataCollection', {
       comment: 'Run parallel data fetch for each ticker',
       itemsPath: '$.tickers',
@@ -115,7 +109,7 @@ export class PipelineStateMachine extends Construct {
         'marketContext.$': '$.marketContext',
       },
       resultPath: JsonPath.DISCARD,
-      maxConcurrency: 10,
+      maxConcurrency: 1,
     });
     mapDataCollection.itemProcessor(parallelDataFetch);
 
@@ -132,30 +126,6 @@ export class PipelineStateMachine extends Construct {
         'enriched.$': '$.Payload',
       },
     });
-
-    const enrichFailedPass = new Pass(this, 'TickerEnrichFailed', {
-      comment:
-        'Enrich failure — produce a SKIP enrichment so downstream Map states have the expected shape',
-      parameters: {
-        enriched: {
-          'ticker.$': '$.ticker',
-          'date.$': '$.date',
-          'marketContext.$': '$.marketContext',
-          suggestedStrategy: 'SKIP',
-          vrp: 0,
-          ivRankSignal: 'SKIP',
-          ivVsSector: 'INLINE',
-          earningsInWindow: false,
-          earningsProximity: 'CLEAR',
-          exDivInWindow: false,
-          near52wHigh: false,
-          atrPct: 0,
-          premiumCoversAtr: false,
-          liquidityOk: false,
-        },
-      },
-    });
-    enrichAndScoreStep.addCatch(enrichFailedPass, { resultPath: '$.error' });
 
     const mapEnrichment = new Map(this, 'MapEnrichment', {
       comment: 'Enrich each ticker with computed signals',

@@ -1,40 +1,44 @@
 import { CandidateStrike, OptionsData, VolSurfacePoint } from '../../types';
 
+const LAB_BASE_URL = 'https://lab.flashalpha.com';
 const MAX_RATE_LIMIT_RETRIES = 3;
 const DEFAULT_RATE_LIMIT_DELAY_MS = 2_000;
 
-interface FlashAlphaQuote {
-  strike: number;
-  expiry: string;
-  optionType: 'call' | 'put';
-  delta: number;
-  theta: number;
-  vega: number;
-  bid: number;
-  ask: number;
-  openInterest: number;
-  volume: number;
-  iv: number;
-}
-
-interface FlashAlphaOptionsResponse {
+interface FlashAlphaStockSummaryResponse {
   symbol: string;
   ivRank?: number;
   iv_rank?: number;
   ivPercentile?: number;
   iv_percentile?: number;
-  iv30d?: number;
-  hv30d?: number;
-  volSurface?: FlashAlphaQuote[];
-  vol_surface?: FlashAlphaQuote[];
-  gammaFlip?: number;
-  callWall?: number;
-  putWall?: number;
+  volatility?: {
+    atm_iv?: number;
+    hv_20?: number;
+    hv_30?: number;
+    hv_60?: number;
+    iv_rank?: number;
+    iv_percentile?: number;
+  };
+  exposure?: {
+    gamma_flip?: number;
+    call_wall?: number;
+    put_wall?: number;
+  } | null;
 }
 
-interface FlashAlphaIvResponse {
-  iv30d?: number;
-  impliedVolatility?: number;
+interface FlashAlphaOptionQuote {
+  strike: number;
+  expiry: string;
+  type: 'C' | 'P' | 'Call' | 'Put' | 'call' | 'put';
+  delta: number;
+  theta: number;
+  vega: number;
+  bid: number;
+  ask: number;
+  mid?: number;
+  implied_vol?: number;
+  open_interest?: number;
+  openInterest?: number;
+  volume: number;
 }
 
 function delay(ms: number): Promise<void> {
@@ -54,9 +58,22 @@ function retryAfterMs(response: Response, attempt: number): number {
   return Math.max(date - Date.now(), 0);
 }
 
-async function fetchJsonWithRateLimitRetry<T>(url: string, symbol: string): Promise<T> {
+async function fetchJsonWithRateLimitRetry<T>(
+  url: string,
+  symbol: string,
+  apiKey?: string,
+): Promise<T> {
   for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: apiKey
+        ? {
+            'X-Api-Key': apiKey,
+            'User-Agent': 'ai-options-advisor/0.1',
+          }
+        : {
+            'User-Agent': 'ai-options-advisor/0.1',
+          },
+    });
 
     if (response.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
       await delay(retryAfterMs(response, attempt));
@@ -75,51 +92,90 @@ async function fetchJsonWithRateLimitRetry<T>(url: string, symbol: string): Prom
   throw new Error(`FlashAlpha rate limit retries exhausted for ${symbol}`);
 }
 
+function requireNumber(value: number | undefined, field: string, symbol: string): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  throw new Error(`FlashAlpha response for ${symbol} did not include ${field}`);
+}
+
+function optionType(type: FlashAlphaOptionQuote['type']): 'call' | 'put' {
+  return type.toLowerCase().startsWith('c') ? 'call' : 'put';
+}
+
+function dte(expiry: string): number {
+  return Math.max(Math.round((new Date(expiry).getTime() - Date.now()) / 86400000), 0);
+}
+
+function stockSummaryUrl(symbol: string): string {
+  return `${LAB_BASE_URL}/v1/stock/${encodeURIComponent(symbol)}/summary`;
+}
+
 export async function fetchFlashAlphaIv(symbol: string, apiKey: string): Promise<number> {
-  const url = `https://api.flashalpha.com/v1/iv?symbol=${symbol}&apikey=${apiKey}`;
-  const data = await fetchJsonWithRateLimitRetry<FlashAlphaIvResponse>(url, symbol);
-  return data.iv30d ?? data.impliedVolatility ?? 0;
+  const data = await fetchJsonWithRateLimitRetry<FlashAlphaStockSummaryResponse>(
+    stockSummaryUrl(symbol),
+    symbol,
+    apiKey,
+  );
+  return requireNumber(data.volatility?.atm_iv, 'volatility.atm_iv', symbol);
 }
 
 export async function fetchFlashAlphaOptions(symbol: string, apiKey: string): Promise<OptionsData> {
-  const url = `https://api.flashalpha.com/v1/options?symbol=${symbol}&apikey=${apiKey}`;
-  const raw = await fetchJsonWithRateLimitRetry<FlashAlphaOptionsResponse>(url, symbol);
+  const quotes = await fetchJsonWithRateLimitRetry<FlashAlphaOptionQuote[] | FlashAlphaOptionQuote>(
+    `${LAB_BASE_URL}/optionquote/${encodeURIComponent(symbol)}`,
+    symbol,
+    apiKey,
+  );
+  const summary = await fetchJsonWithRateLimitRetry<FlashAlphaStockSummaryResponse>(
+    stockSummaryUrl(symbol),
+    symbol,
+    apiKey,
+  );
+  const quoteArray = Array.isArray(quotes) ? quotes : [quotes];
 
-  const quotes: FlashAlphaQuote[] = raw.volSurface ?? raw.vol_surface ?? [];
-
-  const volSurface: VolSurfacePoint[] = quotes.map(q => ({
+  const volSurface: VolSurfacePoint[] = quoteArray.map(q => ({
     expiry: q.expiry,
     strike: q.strike,
-    iv: q.iv,
+    iv: requireNumber(q.implied_vol, 'optionquote[].implied_vol', symbol) * 100,
     delta: q.delta,
   }));
 
-  const candidateStrikes: CandidateStrike[] = quotes.map(q => ({
+  const candidateStrikes: CandidateStrike[] = quoteArray.map(q => ({
     expiry: q.expiry,
-    dte: Math.round((new Date(q.expiry).getTime() - Date.now()) / 86400000),
+    dte: dte(q.expiry),
     strike: q.strike,
-    optionType: q.optionType,
+    optionType: optionType(q.type),
     delta: q.delta,
     theta: q.theta,
     vega: q.vega,
     bid: q.bid,
     ask: q.ask,
-    mid: (q.bid + q.ask) / 2,
-    openInterest: q.openInterest,
+    mid: q.mid ?? (q.bid + q.ask) / 2,
+    openInterest: q.open_interest ?? q.openInterest ?? 0,
     volume: q.volume,
   }));
 
   return {
     symbol,
-    ivRank: raw.ivRank ?? raw.iv_rank ?? 0,
-    ivPercentile: raw.ivPercentile ?? raw.iv_percentile ?? 0,
-    iv30d: raw.iv30d ?? 0,
-    hv30d: raw.hv30d ?? 0,
+    ivRank: requireNumber(
+      summary.ivRank ?? summary.iv_rank ?? summary.volatility?.iv_rank,
+      'iv_rank',
+      symbol,
+    ),
+    ivPercentile: requireNumber(
+      summary.ivPercentile ?? summary.iv_percentile ?? summary.volatility?.iv_percentile,
+      'iv_percentile',
+      symbol,
+    ),
+    iv30d: requireNumber(summary.volatility?.atm_iv, 'volatility.atm_iv', symbol),
+    hv30d: requireNumber(
+      summary.volatility?.hv_30 ?? summary.volatility?.hv_20 ?? summary.volatility?.hv_60,
+      'historical volatility',
+      symbol,
+    ),
     volSurface,
     candidateStrikes,
-    gammaFlip: raw.gammaFlip,
-    callWall: raw.callWall,
-    putWall: raw.putWall,
+    gammaFlip: summary.exposure?.gamma_flip,
+    callWall: summary.exposure?.call_wall,
+    putWall: summary.exposure?.put_wall,
     fetchedAt: new Date().toISOString(),
   };
 }
