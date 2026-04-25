@@ -8,6 +8,8 @@ import {
 import { putIvSnapshot, putReportMetadata } from '../../utils/aws/dynamodb';
 import { error, info } from '../../utils/logger';
 import { getText, getPresignedUrl } from '../../utils/aws/s3';
+import { getSecretValue } from '../../utils/aws/secrets';
+import { sendDiscordReport } from './discord';
 import { buildEmailBody, sendEmail } from './email';
 import { buildIvSnapshots } from './ivSnapshots';
 
@@ -26,6 +28,7 @@ export const handler = async (event: DeliverReportEvent): Promise<void> => {
   const ivHistoryTable = process.env.IV_HISTORY_TABLE!;
   const senderEmail = process.env.SENDER_EMAIL!;
   const recipientEmail = process.env.RECIPIENT_EMAIL!;
+  const discordWebhookSecretArn = process.env.DISCORD_WEBHOOK_SECRET_ARN;
 
   const { reportKey, synthesis, tickerAnalyses, enrichedTickers, date } = event;
 
@@ -47,6 +50,22 @@ export const handler = async (event: DeliverReportEvent): Promise<void> => {
     info('deliver-report email sent', { recipientEmail });
   } catch (err) {
     error('deliver-report email failed — report still available in S3', err as Error);
+  }
+
+  if (discordWebhookSecretArn) {
+    try {
+      const discordWebhookUrl = await getSecretValue(discordWebhookSecretArn);
+      await sendDiscordReport(
+        discordWebhookUrl,
+        reportMarkdown,
+        presignedUrl,
+        date,
+        synthesis.topPicks.length,
+      );
+      info('deliver-report discord sent');
+    } catch (err) {
+      error('deliver-report discord failed — report still available in S3', err as Error);
+    }
   }
 
   const reportMetadata: ReportMetadata = {

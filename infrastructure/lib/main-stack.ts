@@ -89,6 +89,7 @@ export class OptionsAnalysisStack extends Stack {
       ivHistoryTable: tables.ivHistoryTable,
       senderEmail: config.email.senderEmail,
       recipientEmail: config.email.recipientEmail,
+      discordWebhookUrl: secrets.discordWebhookUrl,
     });
 
     const stateMachine = new PipelineStateMachine(this, 'StateMachine', {

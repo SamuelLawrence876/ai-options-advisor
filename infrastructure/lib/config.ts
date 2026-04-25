@@ -7,6 +7,7 @@ export const config = {
     marketDataApiToken: (stage: string) => `/options-advisor/${stage}/market-data-api-token`,
     finnhubApiKey: (stage: string) => `/options-advisor/${stage}/finnhub-api-key`,
     polygonApiKey: (stage: string) => `/options-advisor/${stage}/polygon-api-key`,
+    discordWebhookUrl: (stage: string) => `/options-advisor/${stage}/discord-webhook-url`,
   },
 
   email: {

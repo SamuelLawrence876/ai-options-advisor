@@ -15,6 +15,8 @@ export class Secrets extends Construct {
 
   public readonly polygonApiKey: ISecret;
 
+  public readonly discordWebhookUrl: ISecret;
+
   constructor(scope: Construct, id: string, props: SecretsProps) {
     super(scope, id);
 
@@ -42,6 +44,12 @@ export class Secrets extends Construct {
       this,
       'PolygonApiKey',
       config.secrets.polygonApiKey(stage),
+    );
+
+    this.discordWebhookUrl = Secret.fromSecretNameV2(
+      this,
+      'DiscordWebhookUrl',
+      config.secrets.discordWebhookUrl(stage),
     );
   }
 }

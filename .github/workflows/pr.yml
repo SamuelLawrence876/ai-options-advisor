@@ -15,6 +15,7 @@ permissions:
   pull-requests: write # PR comment with stack URL
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   STACK_BASE_NAME: options-advisor # must match the default in infrastructure/bin/app.ts
 
 jobs:
