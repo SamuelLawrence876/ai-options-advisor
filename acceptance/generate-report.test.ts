@@ -124,12 +124,12 @@ beforeAll(async () => {
 
 describe('generateReport Lambda', () => {
   it('writes markdown report to S3 at the expected key', async () => {
-    expect(reportResult.reportKey).toBe(`reports/${TEST_DATE}/full-report.md`);
-    await expect(objectExists(bucket, `reports/${TEST_DATE}/full-report.md`)).resolves.toBe(true);
+    expect(reportResult.reportKey).toBe(`reports/${TEST_DATE}.md`);
+    await expect(objectExists(bucket, `reports/${TEST_DATE}.md`)).resolves.toBe(true);
   });
 
   it('markdown report contains expected sections', async () => {
-    const report = await getTextObject(bucket, `reports/${TEST_DATE}/full-report.md`);
+    const report = await getTextObject(bucket, `reports/${TEST_DATE}.md`);
     expect(report).toContain('Options Analysis');
     expect(report).toContain('Top Opportunities');
     expect(report).toContain('Full Watchlist');

@@ -63,7 +63,7 @@ describe('pipeline end-to-end', () => {
     });
 
     it('writes the markdown report to S3', async () => {
-      const key = `reports/${TEST_DATE}/full-report.md`;
+      const key = `reports/${TEST_DATE}.md`;
       await expect(objectExists(bucket, key)).resolves.toBe(true);
     });
   });

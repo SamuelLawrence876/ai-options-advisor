@@ -120,8 +120,7 @@ enriched/
   {YYYY-MM-DD}/
     {TICKER}.json
 reports/
-  {YYYY-MM-DD}/
-    full-report.md
+  {YYYY-MM-DD}.md
 ```
 
 Raw data is intentionally preserved for the run date so failed downstream steps can be replayed without refetching paid API data. `raw-data/` expires after 90 days in production and 14 days in dev.
@@ -319,7 +318,7 @@ Specific date:
 ./scripts/run-analysis.sh --stage dev --date 2026-04-25
 ```
 
-By default, the script waits for Step Functions to finish and downloads the generated report into `reports/{YYYY-MM-DD}/full-report.md`.
+By default, the script waits for Step Functions to finish and downloads the generated report into `reports/{YYYY-MM-DD}.md`.
 
 ---
 
@@ -370,7 +369,7 @@ For each active ticker, it then stores:
 `generate-report` writes a Markdown report to:
 
 ```text
-reports/{YYYY-MM-DD}/full-report.md
+reports/{YYYY-MM-DD}.md
 ```
 
 `deliver-report` then:

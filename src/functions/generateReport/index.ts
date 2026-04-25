@@ -44,7 +44,7 @@ export const handler = async (event: GenerateReportEvent): Promise<GenerateRepor
     marketContext,
   );
 
-  const reportKey = `reports/${date}/full-report.md`;
+  const reportKey = `reports/${date}.md`;
   await putMarkdown(bucketName, reportKey, report);
 
   info('generate-report complete', { date, reportKey });
