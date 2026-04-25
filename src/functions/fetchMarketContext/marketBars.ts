@@ -1,10 +1,8 @@
 import { OhlcvBar } from '../../types';
 import { fetchFinnhubQuote } from '../../utils/clients/finnhub';
 import { fetchPolygonOhlcv } from '../../utils/clients/polygon';
-import { fetchYahooOhlcv } from '../../utils/clients/yahoo';
 
 export interface MarketBarsResult {
-  vixBars: OhlcvBar[];
   spyBars: OhlcvBar[];
   qqqBars: OhlcvBar[];
   vixPrice: number;
@@ -18,13 +16,12 @@ export async function fetchMarketBars(
   from: string,
   to: string,
 ): Promise<MarketBarsResult> {
-  const [vixBars, spyBars, qqqBars, spyPrice, qqqPrice, vixPrice] = await Promise.all([
-    fetchYahooOhlcv('^VIX', from, to),
+  const [spyBars, qqqBars, spyPrice, qqqPrice, vixPrice] = await Promise.all([
     fetchPolygonOhlcv('SPY', from, to, polygonKey),
     fetchPolygonOhlcv('QQQ', from, to, polygonKey),
     fetchFinnhubQuote('SPY', finnhubKey),
     fetchFinnhubQuote('QQQ', finnhubKey),
     fetchFinnhubQuote('^VIX', finnhubKey),
   ]);
-  return { vixBars, spyBars, qqqBars, vixPrice, spyPrice, qqqPrice };
+  return { spyBars, qqqBars, vixPrice, spyPrice, qqqPrice };
 }

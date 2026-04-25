@@ -58,7 +58,6 @@ function buildMarketRegimeSection(marketContext: MarketContext): string {
     '## 📊 Market Regime',
     '',
     `${regimeEmoji} **VIX ${marketContext.vix.toFixed(2)}** — ${regimeLabel}`,
-    `> 20-day VIX avg: **${marketContext.vix20dAvg.toFixed(2)}**`,
     '',
     `| Index | Price     | Trend |`,
     `|-------|-----------|-------|`,

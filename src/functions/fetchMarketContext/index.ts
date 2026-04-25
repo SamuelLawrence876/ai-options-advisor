@@ -55,14 +55,13 @@ export const handler = async (
     getActiveWatchlist(watchlistTable),
   ]);
 
-  const { vixBars, spyBars, qqqBars, vixPrice, spyPrice, qqqPrice } = await fetchMarketBars(
+  const { spyBars, qqqBars, vixPrice, spyPrice, qqqPrice } = await fetchMarketBars(
     finnhubKey,
     polygonKey,
     from60d,
     apiDate,
   );
 
-  const vix20dAvg = computeMovingAverage(vixBars.map(b => b.close), 20);
   const spyMa20 = computeMovingAverage(spyBars.map(b => b.close), 20);
   const spyMa50 = computeMovingAverage(spyBars.map(b => b.close), 50);
   const qqqMa20 = computeMovingAverage(qqqBars.map(b => b.close), 20);
@@ -107,7 +106,6 @@ export const handler = async (
   const marketContext: MarketContext = {
     date,
     vix: vixPrice,
-    vix20dAvg,
     vixRegime: classifyVixRegime(vixPrice),
     spyPrice,
     spyTrend,

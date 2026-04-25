@@ -33,7 +33,6 @@ export interface SectorIv {
 export interface MarketContext {
   date: string;
   vix: number;
-  vix20dAvg: number;
   vixRegime: VixRegime;
   spyPrice: number;
   spyTrend: MarketTrend;
