@@ -68,6 +68,7 @@ export class OptionsAnalysisStack extends Stack {
       bucket: storage.bucket,
       watchlistTable: tables.watchlistTable,
       humanContextTable: tables.humanContextTable,
+      ivHistoryTable: tables.ivHistoryTable,
     });
 
     const runLlmAnalysis = new RunLlmAnalysis(this, 'RunLlmAnalysis', {

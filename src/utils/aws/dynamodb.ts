@@ -55,6 +55,26 @@ export async function putIvSnapshot(tableName: string, snapshot: IvSnapshot): Pr
   );
 }
 
+export async function getIvSnapshots(
+  tableName: string,
+  symbol: string,
+  beforeDate: string,
+  limit = 252,
+): Promise<IvSnapshot[]> {
+  const result = await client.send(
+    new QueryCommand({
+      TableName: tableName,
+      KeyConditionExpression: 'symbol = :symbol AND #date < :beforeDate',
+      ExpressionAttributeNames: { '#date': 'date' },
+      ExpressionAttributeValues: { ':symbol': symbol, ':beforeDate': beforeDate },
+      ScanIndexForward: false,
+      Limit: limit,
+    }),
+  );
+
+  return ((result.Items ?? []) as IvSnapshot[]).reverse();
+}
+
 export async function putReportMetadata(
   tableName: string,
   metadata: ReportMetadata,

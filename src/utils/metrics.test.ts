@@ -4,7 +4,9 @@ import {
   classifyVixRegime,
   computeAnnualisedYield,
   computeAtr,
+  computeHistoricalVolatility,
   computeBpr,
+  computeIvRank,
   computeMaxLoss,
   computeMovingAverage,
   computeRobp,
@@ -42,6 +44,17 @@ describe('computeAtr', () => {
   it('computes average true range for uniform bars', () => {
     const bars = Array.from({ length: 15 }, () => bar(100, 105, 95));
     expect(computeAtr(bars, 14)).toBeCloseTo(10);
+  });
+});
+
+describe('computeHistoricalVolatility', () => {
+  it('annualises log-return volatility', () => {
+    const closes = [100, 101, 99, 102, 103, 101, 104, 105, 103, 106, 107, 108];
+    expect(computeHistoricalVolatility(closes, 10)).toBeGreaterThan(0);
+  });
+
+  it('returns 0 when there are not enough returns', () => {
+    expect(computeHistoricalVolatility([100], 30)).toBe(0);
   });
 });
 
@@ -120,7 +133,7 @@ describe('computeBpr', () => {
 
 describe('computeRobp', () => {
   it('annualises return on buying power', () => {
-    expect(computeRobp(1, 100, 30)).toBeCloseTo((1 / 100) * (365 / 30) * 100);
+    expect(computeRobp(1, 100, 30)).toBeCloseTo((100 / 100) * (365 / 30) * 100);
   });
 
   it('returns 0 when BPR is zero', () => {
@@ -134,7 +147,7 @@ describe('computeRobp', () => {
 
 describe('computeAnnualisedYield', () => {
   it('annualises premium yield', () => {
-    expect(computeAnnualisedYield(1, 100, 30)).toBeCloseTo((1 / 10000) * (365 / 30) * 100);
+    expect(computeAnnualisedYield(1, 100, 30)).toBeCloseTo((1 / 100) * (365 / 30) * 100);
   });
 
   it('returns 0 when strike is zero', () => {
@@ -143,5 +156,20 @@ describe('computeAnnualisedYield', () => {
 
   it('returns 0 when DTE is zero', () => {
     expect(computeAnnualisedYield(1, 100, 0)).toBe(0);
+  });
+});
+
+describe('computeIvRank', () => {
+  it('computes rank against historical IV range', () => {
+    expect(computeIvRank(30, [10, 20, 30, 40, 50])).toBe(50);
+  });
+
+  it('clamps values outside historical range', () => {
+    expect(computeIvRank(60, [10, 20, 30, 40, 50])).toBe(100);
+    expect(computeIvRank(5, [10, 20, 30, 40, 50])).toBe(0);
+  });
+
+  it('returns undefined when history is insufficient', () => {
+    expect(computeIvRank(30, [10, 20, 30, 40])).toBeUndefined();
   });
 });

@@ -43,7 +43,11 @@ function retryAfterMs(response: Response, attempt: number): number {
   return Math.max(date - Date.now(), 0);
 }
 
-async function fetchJsonWithRateLimitRetry<T>(url: string, symbol: string, token: string): Promise<T> {
+async function fetchJsonWithRateLimitRetry<T>(
+  url: string,
+  symbol: string,
+  token: string,
+): Promise<T> {
   for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
     const response = await fetch(url, {
       headers: {
@@ -108,7 +112,9 @@ export async function fetchMarketDataOptions(
   );
 
   if (response.s !== 'ok') {
-    throw new Error(`MarketData returned ${response.s} for ${symbol}: ${response.errmsg ?? 'no data'}`);
+    throw new Error(
+      `MarketData returned ${response.s} for ${symbol}: ${response.errmsg ?? 'no data'}`,
+    );
   }
 
   const optionSymbols = requireArray<string>(response, 'optionSymbol', symbol);
@@ -158,8 +164,9 @@ export async function fetchMarketDataOptions(
     symbol,
     ivRank: ivRankProxy,
     ivPercentile: ivRankProxy,
+    ivRankSource: 'CHAIN_PROXY',
     iv30d,
-    hv30d: iv30d,
+    hv30d: 0,
     volSurface,
     candidateStrikes,
     fetchedAt: new Date().toISOString(),

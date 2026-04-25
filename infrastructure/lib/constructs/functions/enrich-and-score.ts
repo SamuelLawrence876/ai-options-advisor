@@ -12,6 +12,7 @@ export interface EnrichAndScoreProps {
   bucket: IBucket;
   watchlistTable: ITable;
   humanContextTable: ITable;
+  ivHistoryTable: ITable;
 }
 
 export class EnrichAndScore extends Construct {
@@ -20,7 +21,7 @@ export class EnrichAndScore extends Construct {
   constructor(scope: Construct, id: string, props: EnrichAndScoreProps) {
     super(scope, id);
 
-    const { stage, bucket, watchlistTable, humanContextTable } = props;
+    const { stage, bucket, watchlistTable, humanContextTable, ivHistoryTable } = props;
 
     this.fn = new NodejsFunction(this, 'Function', {
       functionName: addStagePrefix(stage, 'enrich-and-score'),
@@ -38,6 +39,7 @@ export class EnrichAndScore extends Construct {
         BUCKET_NAME: bucket.bucketName,
         WATCHLIST_TABLE: watchlistTable.tableName,
         HUMAN_CONTEXT_TABLE: humanContextTable.tableName,
+        IV_HISTORY_TABLE: ivHistoryTable.tableName,
       },
       bundling: { minify: true, sourceMap: true },
     });
@@ -45,5 +47,6 @@ export class EnrichAndScore extends Construct {
     bucket.grantReadWrite(this.fn);
     watchlistTable.grantReadData(this.fn);
     humanContextTable.grantReadData(this.fn);
+    ivHistoryTable.grantReadData(this.fn);
   }
 }

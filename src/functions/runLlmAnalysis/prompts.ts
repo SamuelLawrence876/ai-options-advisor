@@ -54,7 +54,7 @@ PER-TICKER RESULTS
 ${JSON.stringify(tickerAnalyses, null, 2)}
 
 Tasks:
-1. Select the top 3-5 opportunities ranked by robpAnnualised (not raw yield). Only select tickers whose recommendation is not SKIP or WATCH and whose maxLoss, buyingPowerRequired, annualisedYield, and robpAnnualised are positive numbers. For each, write a plain-English trade description (e.g. "Sell the MSFT $415/$410 put spread, 28 DTE, collect $1.20").
+1. Select the top 3-5 opportunities ranked by robpAnnualised (not raw yield). Only select tickers whose recommendation is not SKIP or WATCH and whose maxLoss, buyingPowerRequired, annualisedYield, and robpAnnualised are positive numbers. For each, write a plain-English trade description using the exact strike fields provided, including longStrike for spreads when present (e.g. "Sell the MSFT $415/$410 put spread, 28 DTE, collect $1.20").
 2. Note any cases where ROBP ranking materially differs from yield ranking and why that matters.
 3. Flag sector concentration if >2 positions are in the same sector.
 4. Flag correlated risk (e.g. multiple semiconductor names).

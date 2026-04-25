@@ -8,7 +8,9 @@ export function buildSkipReason(enriched: EnrichedTicker): string {
   }
   if (enriched.ivRankSignal === 'SKIP') {
     const rank = enriched.rawOptions.ivRank.toFixed(0);
-    return `IV rank ${rank} below threshold (min: 50) — insufficient premium environment.`;
+    const source =
+      enriched.rawOptions.ivRankSource === 'CHAIN_PROXY' ? 'Chain-proxy IV rank' : 'IV rank';
+    return `${source} ${rank} below threshold (min: 50) — insufficient premium environment.`;
   }
   return 'Data unavailable for one or more required inputs.';
 }

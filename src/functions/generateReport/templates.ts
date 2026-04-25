@@ -87,6 +87,25 @@ function buildTopPickSection(pick: TopPick, index: number): string {
   ].join('\n');
 }
 
+function buildTopOpportunitiesSection(topPicks: TopPick[]): string {
+  const lines = [
+    '## 🎯 Top Opportunities',
+    '',
+    '*Ranked by ⭐ ROBP (return on buying power) annualised — not raw yield*',
+    '',
+  ];
+
+  if (topPicks.length === 0) {
+    lines.push(
+      '_No eligible opportunities this cycle. Every analysed ticker was skipped, put on watch, or failed the positive risk/return checks._',
+      '',
+    );
+    return lines.join('\n');
+  }
+
+  return [...lines, ...topPicks.map((pick, i) => buildTopPickSection(pick, i) + '\n')].join('\n');
+}
+
 function buildWatchlistTable(analyses: TickerAnalysis[]): string {
   const header =
     '| Ticker | Strategy | Conf | Ann. Yield | ROBP ★ | Max Loss | Buying Power | Rationale | Flags |';
@@ -176,11 +195,7 @@ export function buildReport(
     '',
     '---',
     '',
-    '## 🎯 Top Opportunities',
-    '',
-    '*Ranked by ⭐ ROBP (return on buying power) annualised — not raw yield*',
-    '',
-    ...synthesis.topPicks.map((pick, i) => buildTopPickSection(pick, i) + '\n'),
+    buildTopOpportunitiesSection(synthesis.topPicks),
     '---',
     '',
     '## 📋 Full Watchlist',

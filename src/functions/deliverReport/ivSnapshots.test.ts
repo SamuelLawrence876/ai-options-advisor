@@ -9,6 +9,7 @@ function makeEnriched(symbol: string, ivRank: number): EnrichedTicker {
       symbol,
       ivRank,
       ivPercentile: 60,
+      ivRankSource: 'HISTORICAL',
       iv30d: 30,
       hv30d: 25,
       volSurface: [],
@@ -29,6 +30,7 @@ describe('buildIvSnapshots', () => {
       iv30d: 30,
       ivRank: 72,
       ivPercentile: 60,
+      ivRankSource: 'HISTORICAL',
       hv30d: 25,
       vrp: 5,
     });

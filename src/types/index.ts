@@ -47,6 +47,7 @@ export interface OptionsData {
   symbol: string;
   ivRank: number;
   ivPercentile: number;
+  ivRankSource?: 'HISTORICAL' | 'CHAIN_PROXY';
   iv30d: number;
   hv30d: number;
   volSurface: VolSurfacePoint[];
@@ -119,6 +120,7 @@ export interface TechnicalsData {
   trend: TrendClassification;
   atr14: number;
   atrPct: number;
+  hv30d: number;
   priceVsMa20Pct: number;
   priceVsMa50Pct: number;
   fetchedAt: string;
@@ -218,6 +220,7 @@ export interface IvSnapshot {
   iv30d: number;
   ivRank: number;
   ivPercentile: number;
+  ivRankSource?: 'HISTORICAL' | 'CHAIN_PROXY';
   hv30d: number;
   vrp: number;
 }

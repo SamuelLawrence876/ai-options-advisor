@@ -1,6 +1,11 @@
 import { MarketContext, TechnicalsData, WatchlistItem } from '../../types';
 import { error, info } from '../../utils/logger';
-import { computeAtr, computeMovingAverage, classifyTrend } from '../../utils/metrics';
+import {
+  computeAtr,
+  computeHistoricalVolatility,
+  computeMovingAverage,
+  classifyTrend,
+} from '../../utils/metrics';
 import { putJson } from '../../utils/aws/s3';
 import { getSecretValue } from '../../utils/aws/secrets';
 import { fetchFinnhubQuote } from '../../utils/clients/finnhub';
@@ -48,6 +53,7 @@ export const handler = async (event: FetchTechnicalsEvent): Promise<FetchTechnic
   const trend = classifyTrend(price, ma20, ma50);
   const atr14 = computeAtr(slicedBars, 14);
   const atrPct = price > 0 ? (atr14 / price) * 100 : 0;
+  const hv30d = computeHistoricalVolatility(closes, 30);
 
   const high52w = Math.max(...closes);
   const low52w = Math.min(...closes);
@@ -67,6 +73,7 @@ export const handler = async (event: FetchTechnicalsEvent): Promise<FetchTechnic
     trend,
     atr14,
     atrPct,
+    hv30d,
     priceVsMa20Pct,
     priceVsMa50Pct,
     fetchedAt: new Date().toISOString(),

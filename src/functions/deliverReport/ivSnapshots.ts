@@ -9,6 +9,7 @@ export function buildIvSnapshots(enrichedTickers: EnrichedTicker[], date: string
       iv30d: e.rawOptions.iv30d,
       ivRank: e.rawOptions.ivRank,
       ivPercentile: e.rawOptions.ivPercentile,
+      ivRankSource: e.rawOptions.ivRankSource,
       hv30d: e.rawOptions.hv30d,
       vrp: e.vrp,
     }));

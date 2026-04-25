@@ -35,16 +35,14 @@ describe('MarketData client', () => {
 
     const data = await fetchMarketDataOptions('MSFT', 'token', 30);
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.marketdata.app/v1/options/chain/MSFT/?dte=30',
-      expect.objectContaining({
-        headers: expect.objectContaining({ Authorization: 'Bearer token' }),
-      }),
-    );
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.marketdata.app/v1/options/chain/MSFT/?dte=30');
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer token');
     expect(data.symbol).toBe('MSFT');
     expect(data.iv30d).toBeCloseTo(38.93);
-    expect(data.hv30d).toBeCloseTo(data.iv30d);
+    expect(data.hv30d).toBe(0);
     expect(data.ivRank).toBeCloseTo(40.14);
+    expect(data.ivRankSource).toBe('CHAIN_PROXY');
     expect(data.volSurface[0]).toMatchObject({
       expiry: '2026-05-22',
       strike: 445,

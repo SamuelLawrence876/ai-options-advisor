@@ -31,17 +31,18 @@ const technicals: TechnicalsData = {
   trend: 'BULLISH',
   atr14: 4,
   atrPct: 1.7,
+  hv30d: 22,
   priceVsMa20Pct: 4.3,
   priceVsMa50Pct: 9.1,
   fetchedAt: '2026-04-25T00:00:00.000Z',
 };
 
-const putCandidate = (mid: number): CandidateStrike => ({
+const putCandidate = (strike: number, mid: number, delta = -0.27): CandidateStrike => ({
   expiry: '2026-05-31',
   dte: 36,
-  strike: 240,
+  strike,
   optionType: 'put',
-  delta: -0.27,
+  delta,
   theta: 0.05,
   vega: 0,
   bid: mid - 0.1,
@@ -59,6 +60,17 @@ const optionsWithCandidate = (candidate: CandidateStrike): OptionsData => ({
   hv30d: 30,
   volSurface: [],
   candidateStrikes: [candidate],
+  fetchedAt: '2026-04-25T00:00:00.000Z',
+});
+
+const optionsWithCandidates = (candidates: CandidateStrike[]): OptionsData => ({
+  symbol: 'AMZN',
+  ivRank: 60,
+  ivPercentile: 70,
+  iv30d: 45,
+  hv30d: 30,
+  volSurface: [],
+  candidateStrikes: candidates,
   fetchedAt: '2026-04-25T00:00:00.000Z',
 });
 
@@ -100,6 +112,11 @@ describe('selectStrategy', () => {
     expect(selectStrategy('BULLISH', 60, true, 1.5, 'COVERED_CALL', 0)).not.toBe('COVERED_CALL');
   });
 
+  it('requires at least 100 shares for covered calls', () => {
+    expect(selectStrategy('NEUTRAL', 55, true, 2.5, 'ANY', 99)).toBe('CSP');
+    expect(selectStrategy('NEUTRAL', 55, true, 2.5, 'ANY', 100)).toBe('COVERED_CALL');
+  });
+
   it('returns PUT_CREDIT_SPREAD for BULLISH trend with sufficient IV rank', () => {
     expect(selectStrategy('BULLISH', 60, true, 1.5, 'ANY', undefined)).toBe('PUT_CREDIT_SPREAD');
   });
@@ -120,7 +137,7 @@ describe('selectStrategy', () => {
 describe('selectCandidateStrike', () => {
   it('returns undefined for credit spreads with credit greater than spread width', () => {
     const candidate = selectCandidateStrike(
-      optionsWithCandidate(putCandidate(6)),
+      optionsWithCandidates([putCandidate(240, 6), putCandidate(235, 0.5)]),
       fundamentals,
       technicals,
       watchlistItem,
@@ -132,15 +149,28 @@ describe('selectCandidateStrike', () => {
 
   it('returns a positive-risk credit spread when credit is below spread width', () => {
     const candidate = selectCandidateStrike(
-      optionsWithCandidate(putCandidate(1.2)),
+      optionsWithCandidates([putCandidate(240, 2.2), putCandidate(235, 1)]),
       fundamentals,
       technicals,
       watchlistItem,
       'PUT_CREDIT_SPREAD',
     );
 
+    expect(candidate?.longStrike).toBe(235);
     expect(candidate?.maxLoss).toBe(380);
     expect(candidate?.bpr).toBe(380);
     expect(candidate?.robpAnnualised).toBeGreaterThan(0);
+  });
+
+  it('returns undefined when no long put exists for a credit spread', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidate(putCandidate(240, 1.2)),
+      fundamentals,
+      technicals,
+      watchlistItem,
+      'PUT_CREDIT_SPREAD',
+    );
+
+    expect(candidate).toBeUndefined();
   });
 });

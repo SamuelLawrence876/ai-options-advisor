@@ -7,7 +7,9 @@ import {
   WatchlistItem,
 } from '../../types';
 import { info } from '../../utils/logger';
+import { getIvSnapshots } from '../../utils/aws/dynamodb';
 import { getJson, putJson } from '../../utils/aws/s3';
+import { computeIvRank } from '../../utils/metrics';
 import { earningsProximity, selectCandidateStrike, selectStrategy } from './strategy';
 
 interface EnrichAndScoreEvent {
@@ -18,6 +20,7 @@ interface EnrichAndScoreEvent {
 
 export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicker> => {
   const bucketName = process.env.BUCKET_NAME!;
+  const ivHistoryTable = process.env.IV_HISTORY_TABLE!;
   const { ticker, date, marketContext } = event;
   const symbol = ticker.symbol;
 
@@ -29,15 +32,28 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
     getJson<TechnicalsData>(bucketName, `raw-data/${date}/${symbol}/technicals.json`),
   ]);
 
-  const vrp = options.iv30d - options.hv30d;
-  const ivRankSignal = options.ivRank >= 50 ? 'SELL_ENVIRONMENT' : 'SKIP';
+  const ivHistory = await getIvSnapshots(ivHistoryTable, symbol, date);
+  const historicalIvRank = computeIvRank(
+    options.iv30d,
+    ivHistory.map(snapshot => snapshot.iv30d),
+  );
+  const effectiveOptions: OptionsData = {
+    ...options,
+    hv30d: technicals.hv30d ?? options.hv30d,
+    ivRank: historicalIvRank ?? options.ivRank,
+    ivPercentile: historicalIvRank ?? options.ivPercentile,
+    ivRankSource: historicalIvRank === undefined ? 'CHAIN_PROXY' : 'HISTORICAL',
+  };
+
+  const vrp = effectiveOptions.iv30d - effectiveOptions.hv30d;
+  const ivRankSignal = effectiveOptions.ivRank >= 50 ? 'SELL_ENVIRONMENT' : 'SKIP';
   const sectorIv = marketContext.sectorIvs[ticker.sector ?? ''] ?? 0;
   const ivVsSector =
     sectorIv === 0
       ? 'INLINE'
-      : options.iv30d > sectorIv * 1.1
+      : effectiveOptions.iv30d > sectorIv * 1.1
         ? 'ABOVE'
-        : options.iv30d < sectorIv * 0.9
+        : effectiveOptions.iv30d < sectorIv * 0.9
           ? 'BELOW'
           : 'INLINE';
 
@@ -53,19 +69,25 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
 
   const strategy = selectStrategy(
     technicals.trend,
-    options.ivRank,
+    effectiveOptions.ivRank,
     earningsClear,
     atrPct,
     ticker.strategyPref,
     ticker.sharesHeld,
   );
 
-  const candidateTrade = selectCandidateStrike(options, fundamentals, technicals, ticker, strategy);
+  const candidateTrade = selectCandidateStrike(
+    effectiveOptions,
+    fundamentals,
+    technicals,
+    ticker,
+    strategy,
+  );
   const premiumCoversAtr = candidateTrade ? candidateTrade.premiumMid > technicals.atr14 : false;
 
   const liquidityOk = candidateTrade?.liquidityOk ?? false;
   const summarizedOptions: OptionsData = {
-    ...options,
+    ...effectiveOptions,
     volSurface: [],
     candidateStrikes: candidateTrade
       ? [
@@ -113,7 +135,12 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
 
   await putJson(bucketName, `enriched/${date}/${symbol}.json`, enriched);
 
-  info('enrich-and-score complete', { symbol, strategy, ivRank: options.ivRank });
+  info('enrich-and-score complete', {
+    symbol,
+    strategy,
+    ivRank: effectiveOptions.ivRank,
+    ivRankSource: effectiveOptions.ivRankSource,
+  });
 
   return enriched;
 };
