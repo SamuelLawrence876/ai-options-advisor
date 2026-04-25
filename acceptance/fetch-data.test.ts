@@ -24,7 +24,11 @@ let bucket: string;
 
 beforeAll(async () => {
   bucket = await getBucketName(stage, region);
-  await putJsonObject(bucket, `raw-data/${TEST_DATE}/${ticker.symbol}/options.json`, optionsFixture);
+  await putJsonObject(
+    bucket,
+    `raw-data/${TEST_DATE}/${ticker.symbol}/options.json`,
+    optionsFixture,
+  );
 });
 
 describe('fetchOptionsData Lambda', () => {
