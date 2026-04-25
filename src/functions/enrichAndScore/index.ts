@@ -64,6 +64,31 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
   const premiumCoversAtr = candidateTrade ? candidateTrade.premiumMid > technicals.atr14 : false;
 
   const liquidityOk = candidateTrade?.liquidityOk ?? false;
+  const summarizedOptions: OptionsData = {
+    ...options,
+    volSurface: [],
+    candidateStrikes: candidateTrade
+      ? [
+          {
+            expiry: candidateTrade.expiry,
+            dte: candidateTrade.dte,
+            strike: candidateTrade.strike,
+            optionType:
+              candidateTrade.strategy === 'COVERED_CALL' || candidateTrade.delta > 0
+                ? 'call'
+                : 'put',
+            delta: candidateTrade.delta,
+            theta: candidateTrade.theta,
+            vega: 0,
+            bid: candidateTrade.bid,
+            ask: candidateTrade.ask,
+            mid: candidateTrade.premiumMid,
+            openInterest: candidateTrade.openInterest,
+            volume: 0,
+          },
+        ]
+      : [],
+  };
 
   const enriched: EnrichedTicker = {
     ticker,
@@ -81,7 +106,7 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
     suggestedStrategy: strategy,
     candidateTrade,
     marketContext,
-    rawOptions: options,
+    rawOptions: summarizedOptions,
     rawFundamentals: fundamentals,
     rawTechnicals: technicals,
   };

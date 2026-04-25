@@ -4,24 +4,9 @@ import { error, info } from '../../utils/logger';
 import { classifyMarketTrend, classifyVixRegime, computeMovingAverage } from '../../utils/metrics';
 import { putJson } from '../../utils/aws/s3';
 import { getSecretValue } from '../../utils/aws/secrets';
-import { fetchFlashAlphaIv } from '../../utils/clients/flashAlpha';
 import { fetchFinnhubEarningsCalendar } from '../../utils/clients/finnhub';
 import { dateOffsetDays, resolveApiDate } from '../../utils/dates';
 import { fetchMarketBars } from './marketBars';
-
-const SECTOR_ETF_MAP: Record<string, string> = {
-  Technology: 'XLK',
-  Financials: 'XLF',
-  Energy: 'XLE',
-  Healthcare: 'XLV',
-  'Consumer Discretionary': 'XLY',
-  'Consumer Staples': 'XLP',
-  Industrials: 'XLI',
-  Materials: 'XLB',
-  Utilities: 'XLU',
-  'Real Estate': 'XLRE',
-  Communications: 'XLC',
-};
 
 interface FetchMarketContextEvent {
   date?: string;
@@ -38,7 +23,6 @@ export const handler = async (
 ): Promise<FetchMarketContextResult> => {
   const bucketName = process.env.BUCKET_NAME!;
   const watchlistTable = process.env.WATCHLIST_TABLE!;
-  const flashAlphaArn = process.env.FLASH_ALPHA_SECRET_ARN!;
   const finnhubArn = process.env.FINNHUB_SECRET_ARN!;
   const polygonArn = process.env.POLYGON_SECRET_ARN!;
 
@@ -48,8 +32,7 @@ export const handler = async (
 
   info('fetch-market-context started', { date });
 
-  const [flashAlphaKey, finnhubKey, polygonKey, tickers] = await Promise.all([
-    getSecretValue(flashAlphaArn),
+  const [finnhubKey, polygonKey, tickers] = await Promise.all([
     getSecretValue(finnhubArn),
     getSecretValue(polygonArn),
     getActiveWatchlist(watchlistTable),
@@ -74,19 +57,7 @@ export const handler = async (
   const marketTrend: MarketTrend =
     bullCount > bearCount ? 'BULL' : bearCount > bullCount ? 'BEAR' : 'NEUTRAL';
 
-  const requiredSectors = new Set(
-    tickers.map(t => t.sector).filter((s): s is string => Boolean(s)),
-  );
-  const requiredEtfs = Array.from(requiredSectors)
-    .map(s => SECTOR_ETF_MAP[s])
-    .filter((etf): etf is string => Boolean(etf));
-
   const sectorIvs: Record<string, number> = {};
-  for (const etf of requiredEtfs) {
-    const iv = await fetchFlashAlphaIv(etf, flashAlphaKey);
-    const sector = Object.entries(SECTOR_ETF_MAP).find(([, e]) => e === etf)?.[0];
-    if (sector) sectorIvs[sector] = iv;
-  }
 
   const earningsCalendar = await fetchFinnhubEarningsCalendar(
     apiDate,

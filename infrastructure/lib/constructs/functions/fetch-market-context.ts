@@ -12,7 +12,6 @@ export interface FetchMarketContextProps {
   stage: string;
   bucket: IBucket;
   watchlistTable: ITable;
-  flashAlphaApiKey: ISecret;
   finnhubApiKey: ISecret;
   polygonApiKey: ISecret;
 }
@@ -23,12 +22,12 @@ export class FetchMarketContext extends Construct {
   constructor(scope: Construct, id: string, props: FetchMarketContextProps) {
     super(scope, id);
 
-    const { stage, bucket, watchlistTable, flashAlphaApiKey, finnhubApiKey, polygonApiKey } = props;
+    const { stage, bucket, watchlistTable, finnhubApiKey, polygonApiKey } = props;
 
     this.fn = new NodejsFunction(this, 'Function', {
       functionName: addStagePrefix(stage, 'fetch-market-context'),
       description:
-        'Fetches macro regime data once per pipeline run: VIX level and classification, SPY/QQQ trend, sector ETF IV, and earnings calendar',
+        'Fetches macro regime data once per pipeline run: VIX level and classification, SPY/QQQ trend, and earnings calendar',
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
       entry: path.join(__dirname, '../../../../src/functions/fetchMarketContext/index.ts'),
@@ -40,7 +39,6 @@ export class FetchMarketContext extends Construct {
         STAGE: stage,
         BUCKET_NAME: bucket.bucketName,
         WATCHLIST_TABLE: watchlistTable.tableName,
-        FLASH_ALPHA_SECRET_ARN: flashAlphaApiKey.secretName,
         FINNHUB_SECRET_ARN: finnhubApiKey.secretName,
         POLYGON_SECRET_ARN: polygonApiKey.secretName,
       },
@@ -49,7 +47,6 @@ export class FetchMarketContext extends Construct {
 
     bucket.grantReadWrite(this.fn);
     watchlistTable.grantReadData(this.fn);
-    flashAlphaApiKey.grantRead(this.fn);
     finnhubApiKey.grantRead(this.fn);
     polygonApiKey.grantRead(this.fn);
   }

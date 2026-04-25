@@ -59,7 +59,6 @@ export class OptionsAnalysisStack extends Stack {
       stage,
       bucket: storage.bucket,
       watchlistTable: tables.watchlistTable,
-      flashAlphaApiKey: secrets.flashAlphaApiKey,
       finnhubApiKey: secrets.finnhubApiKey,
       polygonApiKey: secrets.polygonApiKey,
     });
