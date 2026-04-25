@@ -7,8 +7,6 @@ export interface SecretsProps {
 }
 
 export class Secrets extends Construct {
-  public readonly flashAlphaApiKey: ISecret;
-
   public readonly marketDataApiToken: ISecret;
 
   public readonly finnhubApiKey: ISecret;
@@ -21,12 +19,6 @@ export class Secrets extends Construct {
     super(scope, id);
 
     const { stage } = props;
-
-    this.flashAlphaApiKey = Secret.fromSecretNameV2(
-      this,
-      'FlashAlphaApiKey',
-      config.secrets.flashAlphaApiKey(stage),
-    );
 
     this.marketDataApiToken = Secret.fromSecretNameV2(
       this,

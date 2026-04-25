@@ -6,8 +6,10 @@ import { OptionsAnalysisStack, StackType } from '../lib/main-stack';
 const app = new App();
 
 const stackType = (app.node.tryGetContext('stackType') as StackType | undefined) ?? 'prod';
-const stage = stackType === 'prod' ? 'production' : 'dev';
-const stackId = stackType === 'prod' ? config.stackName : `${config.stackName}-dev`;
+const stageContext = app.node.tryGetContext('stage') as string | undefined;
+const stage =
+  stackType === 'prod' ? 'production' : stackType === 'dev' ? 'dev' : (stageContext ?? 'dev');
+const stackId = stackType === 'prod' ? config.stackName : `${config.stackName}-${stage}`;
 
 const stack = new OptionsAnalysisStack(app, stackId, {
   stackType,

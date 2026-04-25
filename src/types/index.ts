@@ -1,4 +1,4 @@
-export type StrategyPref = 'COVERED_CALL' | 'CSP' | 'PUT_CREDIT_SPREAD' | 'IRON_CONDOR' | 'ANY';
+export type StrategyPref = 'COVERED_CALL' | 'CSP' | 'PUT_CREDIT_SPREAD' | 'ANY';
 
 export interface WatchlistItem {
   symbol: string;
@@ -25,11 +25,6 @@ export type VixRegime = 'LOW' | 'NORMAL' | 'ELEVATED' | 'EXTREME';
 export type MarketTrend = 'BULL' | 'NEUTRAL' | 'BEAR';
 export type TrendClassification = 'BULLISH' | 'NEUTRAL' | 'BEARISH';
 
-export interface SectorIv {
-  etf: string;
-  iv: number;
-}
-
 export interface MarketContext {
   date: string;
   vix: number;
@@ -39,7 +34,6 @@ export interface MarketContext {
   qqqPrice: number;
   qqqTrend: MarketTrend;
   marketTrend: MarketTrend;
-  sectorIvs: Record<string, number>;
   fetchedAt: string;
 }
 
@@ -130,7 +124,6 @@ export type StrategyRecommendation =
   | 'COVERED_CALL'
   | 'PUT_CREDIT_SPREAD'
   | 'CSP'
-  | 'IRON_CONDOR'
   | 'SKIP'
   | 'WATCH';
 
@@ -161,7 +154,7 @@ export interface EnrichedTicker {
   date: string;
   vrp: number;
   ivRankSignal: 'SELL_ENVIRONMENT' | 'SKIP';
-  ivVsSector: 'ABOVE' | 'BELOW' | 'INLINE';
+  candidateRejectionReasons: string[];
   earningsInWindow: boolean;
   earningsProximity: EarningsProximity;
   exDivInWindow: boolean;

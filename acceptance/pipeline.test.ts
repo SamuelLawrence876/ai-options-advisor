@@ -17,7 +17,9 @@ let executionArn: string;
 
 beforeAll(async () => {
   bucket = await getBucketName(stage, region);
-  const tickers = (await scanTable<WatchlistItem>(names.watchlistTable)).filter(item => item.active);
+  const tickers = (await scanTable<WatchlistItem>(names.watchlistTable)).filter(
+    item => item.active,
+  );
   await Promise.all(
     tickers.map(ticker =>
       putJsonObject(bucket, `raw-data/${TEST_DATE}/${ticker.symbol}/options.json`, {
@@ -47,7 +49,6 @@ describe('pipeline end-to-end', () => {
       expect(ctx).toHaveProperty('vix');
       expect(ctx).toHaveProperty('vixRegime');
       expect(ctx).toHaveProperty('marketTrend');
-      expect(ctx).toHaveProperty('sectorIvs');
     });
 
     it('writes raw data for every active ticker', async () => {

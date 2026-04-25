@@ -51,6 +51,29 @@ describe('analysisMetrics', () => {
     });
   });
 
+  it('does not rank an actionable recommendation that mismatches the candidate strategy', () => {
+    const analysis = {
+      symbol: 'AAPL',
+      recommendation: 'CSP',
+      confidence: 'HIGH',
+      reasoning: 'Sell the put.',
+      risks: [],
+      flags: [],
+    } as TickerAnalysis;
+
+    const enriched = {
+      candidateTrade,
+    } as EnrichedTicker;
+
+    expect(withCandidateMetrics(analysis, enriched)).toMatchObject({
+      recommendation: 'WATCH',
+      confidence: 'LOW',
+      adjustedStrike: undefined,
+      annualisedYield: undefined,
+      flags: ['STRATEGY_MISMATCH'],
+    });
+  });
+
   it('backfills missing top pick metrics from matching ticker analysis', () => {
     const topPick = {
       symbol: 'AAPL',

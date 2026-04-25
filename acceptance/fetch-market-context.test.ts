@@ -45,7 +45,6 @@ describe('fetchMarketContext Lambda', () => {
     expect(['BULL', 'NEUTRAL', 'BEAR']).toContain(ctx.marketTrend);
     expect(typeof ctx.spyPrice).toBe('number');
     expect(ctx.spyPrice).toBeGreaterThan(0);
-    expect(typeof ctx.sectorIvs).toBe('object');
     expect(ctx.fetchedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 

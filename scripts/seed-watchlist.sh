@@ -94,16 +94,19 @@ function toPutRequest(item) {
 }
 
 const watchlist = JSON.parse(fs.readFileSync(watchlistFile, 'utf8'));
-if (!Array.isArray(watchlist)) fail('Watchlist file must contain a JSON array of symbols');
+if (!Array.isArray(watchlist)) fail('Watchlist file must contain a JSON array');
 if (watchlist.length === 0) fail('Watchlist file must contain at least one ticker');
 
 const seen = new Set();
-const items = watchlist.map((symbol, index) => {
-  if (typeof symbol !== 'string' || symbol.trim() === '') fail(`Item ${index + 1} must be a symbol string`);
-  const normalizedSymbol = symbol.trim().toUpperCase();
+const items = watchlist.map((entry, index) => {
+  const rawSymbol = typeof entry === 'string' ? entry : entry?.symbol;
+  if (typeof rawSymbol !== 'string' || rawSymbol.trim() === '') fail(`Item ${index + 1} must include a symbol`);
+  const normalizedSymbol = rawSymbol.trim().toUpperCase();
   if (seen.has(normalizedSymbol)) fail(`Duplicate symbol: ${normalizedSymbol}`);
   seen.add(normalizedSymbol);
-  return { symbol: normalizedSymbol, ...defaults };
+  if (typeof entry === 'string') return { symbol: normalizedSymbol, ...defaults };
+  if (typeof entry !== 'object' || Array.isArray(entry)) fail(`Item ${index + 1} must be a symbol string or object`);
+  return { ...defaults, ...entry, symbol: normalizedSymbol };
 });
 
 for (let index = 0; index < items.length; index += 25) {

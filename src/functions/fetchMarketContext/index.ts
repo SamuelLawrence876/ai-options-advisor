@@ -45,10 +45,22 @@ export const handler = async (
     apiDate,
   );
 
-  const spyMa20 = computeMovingAverage(spyBars.map(b => b.close), 20);
-  const spyMa50 = computeMovingAverage(spyBars.map(b => b.close), 50);
-  const qqqMa20 = computeMovingAverage(qqqBars.map(b => b.close), 20);
-  const qqqMa50 = computeMovingAverage(qqqBars.map(b => b.close), 50);
+  const spyMa20 = computeMovingAverage(
+    spyBars.map(b => b.close),
+    20,
+  );
+  const spyMa50 = computeMovingAverage(
+    spyBars.map(b => b.close),
+    50,
+  );
+  const qqqMa20 = computeMovingAverage(
+    qqqBars.map(b => b.close),
+    20,
+  );
+  const qqqMa50 = computeMovingAverage(
+    qqqBars.map(b => b.close),
+    50,
+  );
 
   const spyTrend = classifyMarketTrend(spyPrice, spyMa20, spyMa50);
   const qqqTrend = classifyMarketTrend(qqqPrice, qqqMa20, qqqMa50);
@@ -56,8 +68,6 @@ export const handler = async (
   const bearCount = [spyTrend, qqqTrend].filter(t => t === 'BEAR').length;
   const marketTrend: MarketTrend =
     bullCount > bearCount ? 'BULL' : bearCount > bullCount ? 'BEAR' : 'NEUTRAL';
-
-  const sectorIvs: Record<string, number> = {};
 
   const earningsCalendar = await fetchFinnhubEarningsCalendar(
     apiDate,
@@ -77,7 +87,6 @@ export const handler = async (
     qqqPrice,
     qqqTrend,
     marketTrend,
-    sectorIvs,
     fetchedAt: new Date().toISOString(),
   };
 
@@ -86,7 +95,12 @@ export const handler = async (
     putJson(bucketName, `raw-data/${date}/earnings-calendar.json`, earningsCalendar),
   ]);
 
-  info('fetch-market-context complete', { date, vix: vixPrice, marketTrend, tickerCount: tickers.length });
+  info('fetch-market-context complete', {
+    date,
+    vix: vixPrice,
+    marketTrend,
+    tickerCount: tickers.length,
+  });
 
   return { date, marketContext, tickers };
 };

@@ -29,7 +29,7 @@ const fixtureEnrichedTicker: EnrichedTicker = {
   date: TEST_DATE,
   vrp: optionsFixture.iv30d - optionsFixture.hv30d,
   ivRankSignal: 'SELL_ENVIRONMENT',
-  ivVsSector: 'ABOVE',
+  candidateRejectionReasons: [],
   earningsInWindow: false,
   earningsProximity: 'CLEAR',
   exDivInWindow: false,
@@ -103,14 +103,7 @@ describe('runLlmAnalysis Lambda — Stage 1 (per ticker)', () => {
   });
 
   it('returns a valid recommendation', () => {
-    const validRecommendations = [
-      'COVERED_CALL',
-      'PUT_CREDIT_SPREAD',
-      'CSP',
-      'IRON_CONDOR',
-      'SKIP',
-      'WATCH',
-    ];
+    const validRecommendations = ['COVERED_CALL', 'PUT_CREDIT_SPREAD', 'CSP', 'SKIP', 'WATCH'];
     expect(validRecommendations).toContain(analysis.recommendation);
   });
 

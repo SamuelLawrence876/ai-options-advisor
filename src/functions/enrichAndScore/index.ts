@@ -10,7 +10,12 @@ import { info } from '../../utils/logger';
 import { getIvSnapshots } from '../../utils/aws/dynamodb';
 import { getJson, putJson } from '../../utils/aws/s3';
 import { computeIvRank } from '../../utils/metrics';
-import { earningsProximity, selectCandidateStrike, selectStrategy } from './strategy';
+import {
+  candidateRejectionReasons,
+  earningsProximity,
+  selectCandidateStrike,
+  selectStrategy,
+} from './strategy';
 
 interface EnrichAndScoreEvent {
   ticker: WatchlistItem;
@@ -47,15 +52,6 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
 
   const vrp = effectiveOptions.iv30d - effectiveOptions.hv30d;
   const ivRankSignal = effectiveOptions.ivRank >= 50 ? 'SELL_ENVIRONMENT' : 'SKIP';
-  const sectorIv = marketContext.sectorIvs[ticker.sector ?? ''] ?? 0;
-  const ivVsSector =
-    sectorIv === 0
-      ? 'INLINE'
-      : effectiveOptions.iv30d > sectorIv * 1.1
-        ? 'ABOVE'
-        : effectiveOptions.iv30d < sectorIv * 0.9
-          ? 'BELOW'
-          : 'INLINE';
 
   const earningsInWindow =
     fundamentals.earningsDte !== undefined && fundamentals.earningsDte <= ticker.maxDte;
@@ -67,7 +63,7 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
   const near52wHigh = technicals.distanceFromHigh52wPct < 5;
   const atrPct = technicals.atrPct;
 
-  const strategy = selectStrategy(
+  const preScreenStrategy = selectStrategy(
     technicals.trend,
     effectiveOptions.ivRank,
     earningsClear,
@@ -81,8 +77,13 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
     fundamentals,
     technicals,
     ticker,
-    strategy,
+    preScreenStrategy,
   );
+  const rejectionReasons =
+    preScreenStrategy === 'SKIP'
+      ? []
+      : candidateRejectionReasons(candidateTrade, ticker, exDivInWindow);
+  const strategy = rejectionReasons.length > 0 ? 'SKIP' : preScreenStrategy;
   const premiumCoversAtr = candidateTrade ? candidateTrade.premiumMid > technicals.atr14 : false;
 
   const liquidityOk = candidateTrade?.liquidityOk ?? false;
@@ -117,7 +118,7 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
     date,
     vrp,
     ivRankSignal,
-    ivVsSector,
+    candidateRejectionReasons: rejectionReasons,
     earningsInWindow,
     earningsProximity: proximity,
     exDivInWindow,
@@ -138,6 +139,8 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
   info('enrich-and-score complete', {
     symbol,
     strategy,
+    preScreenStrategy,
+    candidateRejected: rejectionReasons.length > 0,
     ivRank: effectiveOptions.ivRank,
     ivRankSource: effectiveOptions.ivRankSource,
   });

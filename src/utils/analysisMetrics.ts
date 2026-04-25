@@ -7,6 +7,27 @@ export function withCandidateMetrics(
   const candidate = enriched.candidateTrade;
   if (!candidate) return analysis;
 
+  const actionableMismatch =
+    analysis.recommendation !== 'SKIP' &&
+    analysis.recommendation !== 'WATCH' &&
+    analysis.recommendation !== candidate.strategy;
+
+  if (actionableMismatch) {
+    return {
+      ...analysis,
+      recommendation: 'WATCH',
+      confidence: 'LOW',
+      adjustedStrike: undefined,
+      adjustedExpiry: undefined,
+      annualisedYield: undefined,
+      maxLoss: undefined,
+      buyingPowerRequired: undefined,
+      robpAnnualised: undefined,
+      reasoning: `Model recommended ${analysis.recommendation}, but the pre-screened candidate is ${candidate.strategy}. Waiting for a matching candidate before ranking.`,
+      flags: [...analysis.flags, 'STRATEGY_MISMATCH'],
+    };
+  }
+
   return {
     ...analysis,
     adjustedStrike: candidate.strike,

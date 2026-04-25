@@ -7,10 +7,5 @@
   "qqqPrice": 440.12,
   "qqqTrend": "BULL",
   "marketTrend": "BULL",
-  "sectorIvs": {
-    "Technology": 24.5,
-    "Financials": 18.2,
-    "Energy": 22.1
-  },
   "fetchedAt": "2026-04-28T06:05:00.000Z"
 }

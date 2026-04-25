@@ -11,8 +11,6 @@ export function formatDossier(
   const f = rawFundamentals;
   const ct = candidateTrade;
 
-  const sectorIv = marketContext.sectorIvs[ticker.sector ?? ''] ?? 0;
-
   const lines: string[] = [
     '═══════════════════════════════════════',
     `TICKER: ${ticker.symbol}`,
@@ -26,7 +24,6 @@ export function formatDossier(
     `Current IV:     ${o.iv30d.toFixed(1)}%`,
     `30d HV:         ${o.hv30d.toFixed(1)}%`,
     `VRP:            ${enriched.vrp >= 0 ? '+' : ''}${enriched.vrp.toFixed(1)}%  [${enriched.vrp >= 0 ? 'POSITIVE ✓' : 'NEGATIVE ✗'}]`,
-    `Sector ETF IV:  ${sectorIv.toFixed(1)}%  (${enriched.ivVsSector})`,
     '',
     'TREND & TECHNICALS',
     '──────────────────',

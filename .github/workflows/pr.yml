@@ -93,28 +93,16 @@ jobs:
             -c stage="$STAGE" \
             --outputs-file cdk-outputs.json
 
-      - name: Extract API URL
-        id: outputs
-        run: echo "api-url=$(jq -r '.[keys[0]].ApiUrl' cdk-outputs.json)" >> "$GITHUB_OUTPUT"
-
-      - name: Post API URL to PR
+      - name: Post stack details to PR
         uses: actions/github-script@v8
         with:
           script: |
-            const fs = require('fs');
-            let apiUrl = 'Not available';
-            try {
-              const outputs = JSON.parse(fs.readFileSync('cdk-outputs.json', 'utf8'));
-              const stackKey = Object.keys(outputs)[0];
-              apiUrl = outputs[stackKey]?.ApiUrl ?? apiUrl;
-            } catch (_) {}
-
             const stage = process.env.STAGE;
             const body = [
-              '### Ephemeral environment deployed :rocket:',
+              '### Ephemeral environment deployed',
               '',
               `**Stack:** \`${{ env.STACK_BASE_NAME }}-${stage}\``,
-              `**API URL:** ${apiUrl}`,
+              `**Stage:** \`${stage}\``,
               '',
               '_This stack will be automatically destroyed when the PR is closed._',
             ].join('\n');
@@ -147,7 +135,7 @@ jobs:
             }
 
       - name: Seed watchlist
-        run: ./scripts/seed-watchlist.sh dev
+        run: ./scripts/seed-watchlist.sh "$STAGE"
         env:
           AWS_DEFAULT_REGION: us-east-1
 

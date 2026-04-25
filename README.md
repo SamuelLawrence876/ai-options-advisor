@@ -36,7 +36,7 @@ See [PLAN.md](./PLAN.md) for the broader design notes and future roadmap.
 Each run:
 
 1. 🌎 Loads active tickers from DynamoDB and fetches market context.
-2. 📊 Pulls options, fundamentals, technicals, VIX, SPY/QQQ trend, sector IV, and earnings calendar data.
+2. 📊 Pulls options, fundamentals, technicals, VIX, SPY/QQQ trend, and earnings calendar data.
 3. 🧮 Enriches every ticker with signals such as IV rank, volatility risk premium, earnings risk, ATR, liquidity, candidate strikes, and return on buying power.
 4. 🤖 Sends viable candidates to Claude through Bedrock for per-ticker analysis.
 5. 🧠 Runs a portfolio-level synthesis that ranks the best opportunities.
@@ -96,7 +96,7 @@ infrastructure/
       secrets/
         secrets.ts                        References API key secrets
       functions/
-        fetch-options-data.ts             Lambda construct for FlashAlpha options data
+        fetch-options-data.ts             Lambda construct for MarketData.app options data
         fetch-fundamentals.ts             Lambda construct for Finnhub fundamentals
         fetch-technicals.ts               Lambda construct for Finnhub and Polygon technicals
         fetch-market-context.ts           Lambda construct for market regime data
@@ -176,7 +176,6 @@ Watchlist items use camelCase fields:
   "minDte": 21,
   "maxDte": 45,
   "active": true,
-  "sector": "Technology",
   "notes": "Core long position, only sell calls above cost basis"
 }
 ```
@@ -186,7 +185,6 @@ Supported `strategyPref` values:
 - `COVERED_CALL`
 - `CSP`
 - `PUT_CREDIT_SPREAD`
-- `IRON_CONDOR`
 - `ANY`
 
 Set `active` to `false` to pause a ticker without deleting it.
@@ -200,7 +198,6 @@ The stack references existing Secrets Manager secrets by name. Create these befo
 Production secret names:
 
 ```text
-/options-advisor/production/flash-alpha-api-key
 /options-advisor/production/market-data-api-token
 /options-advisor/production/finnhub-api-key
 /options-advisor/production/polygon-api-key
@@ -210,7 +207,6 @@ Production secret names:
 Dev secret names:
 
 ```text
-/options-advisor/dev/flash-alpha-api-key
 /options-advisor/dev/market-data-api-token
 /options-advisor/dev/finnhub-api-key
 /options-advisor/dev/polygon-api-key
@@ -221,11 +217,6 @@ Example:
 
 ```bash
 login
-
-aws secretsmanager create-secret \
-  --name /options-advisor/dev/flash-alpha-api-key \
-  --secret-string 'YOUR_FLASHALPHA_KEY' \
-  --region us-east-1
 
 aws secretsmanager create-secret \
   --name /options-advisor/dev/market-data-api-token \
@@ -311,7 +302,7 @@ npx cdk deploy --context stackType=dev
 
 ### 5. Seed the Watchlist
 
-The seed script writes the stock symbols from `scripts/watchlist.json` into the stage watchlist table.
+The seed script writes the symbols from `scripts/watchlist.json` into the stage watchlist table. The default file is just the list of stocks you want watched; object entries are also supported for optional per-position overrides such as `strategyPref`, `sharesHeld`, and `costBasis`.
 
 Production:
 
@@ -325,7 +316,7 @@ Dev:
 npm run seed:dev
 ```
 
-Add or remove stocks by editing the symbol list in `scripts/watchlist.json`, then rerun the seed script.
+Add or remove stocks by editing `scripts/watchlist.json`, then rerun the seed script.
 
 ### 6. Run an Analysis Manually
 
@@ -355,7 +346,7 @@ By default, the script waits for Step Functions to finish and downloads the gene
 
 Current providers used by the code:
 
-- ⚡ FlashAlpha: options chain data, IV rank, IV percentile, 30-day IV, historical volatility, candidate strikes, Greeks, and sector ETF IV.
+- 📈 MarketData.app: options chain data, chain-proxy IV rank, IV percentile, 30-day IV, candidate strikes, Greeks, bid/ask, open interest, and volume.
 - 🐦 Finnhub: current quotes, earnings calendar, dividends, analyst recommendations, and price targets.
 - 📐 Polygon: OHLCV history for technical indicators and market trend calculations.
 - 🧠 AWS Bedrock: Claude analysis and portfolio synthesis.
@@ -367,7 +358,7 @@ Alpha Vantage is not used by the current implementation.
 
 ## 🧠 Analysis Flow
 
-The pipeline first builds a market context object containing VIX regime, SPY/QQQ trend, overall market trend, and sector IVs.
+The pipeline first builds a market context object containing VIX regime, SPY/QQQ trend, and overall market trend.
 
 For each active ticker, it then stores:
 
@@ -379,7 +370,6 @@ For each active ticker, it then stores:
 
 - Volatility risk premium.
 - IV rank signal.
-- IV versus sector.
 - Earnings and ex-dividend risk.
 - ATR and 52-week high proximity.
 - Suggested strategy.
@@ -388,8 +378,11 @@ For each active ticker, it then stores:
 - Annualised yield.
 - Annualised return on buying power.
 - Liquidity flag.
+- Mechanical rejection reasons when a candidate is missing, illiquid, mathematically invalid, below target yield, or exposed to covered-call ex-dividend risk.
 
-`run-llm-analysis` skips Bedrock calls for clear `SKIP` candidates, then asks Claude to analyze viable trades. A second Claude call synthesizes the portfolio-level ranking.
+`enrich-and-score` is the mechanical gatekeeper. It marks a ticker as `SKIP` before Bedrock when no valid candidate exists, when risk/return math is invalid, when liquidity fails the threshold, when target yield is missed, or when covered-call ex-dividend risk falls inside the expiry window.
+
+`run-llm-analysis` skips Bedrock calls for `SKIP` candidates, then asks Claude to explain viable trades without inventing new strikes, expiries, strategies, or risk metrics. A second Claude call synthesizes the portfolio-level ranking, but generated reports only keep top picks whose code-computed metrics remain positive and rankable.
 
 ---
 
@@ -449,7 +442,7 @@ GitHub Actions workflows:
 
 - `ci.yml`: runs lint, type-check, unit tests, and infrastructure tests on pull requests to `main` and pushes to non-main branches.
 - `deploy.yml`: runs on pushes to `main`, deploys dev, runs acceptance tests, then deploys production.
-- `pr.yml`: contains scaffolding for PR-specific ephemeral environments.
+- `pr.yml`: deploys PR-specific ephemeral environments using a branch-derived stage name.
 
 Workflows use AWS OIDC, so long-lived AWS access keys are not stored in GitHub.
 
@@ -461,7 +454,7 @@ Required GitHub environments:
 
 Each environment needs an `AWS_DEPLOY_ROLE_ARN` secret.
 
-Note: the current CDK app explicitly distinguishes production from dev. Review `pr.yml` before relying on ephemeral stacks, because that workflow passes an `ephemeral` context value while `infrastructure/bin/app.ts` currently maps non-production deployments to the dev stage.
+Ephemeral stacks use the PR workflow's derived stage name for stack names, DynamoDB tables, S3 buckets, and secret paths.
 
 ---
 

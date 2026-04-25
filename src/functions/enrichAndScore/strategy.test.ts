@@ -5,7 +5,12 @@ import {
   TechnicalsData,
   WatchlistItem,
 } from '../../types';
-import { earningsProximity, selectCandidateStrike, selectStrategy } from './strategy';
+import {
+  candidateRejectionReasons,
+  earningsProximity,
+  selectCandidateStrike,
+  selectStrategy,
+} from './strategy';
 
 const watchlistItem: WatchlistItem = {
   symbol: 'AMZN',
@@ -42,6 +47,21 @@ const putCandidate = (strike: number, mid: number, delta = -0.27): CandidateStri
   dte: 36,
   strike,
   optionType: 'put',
+  delta,
+  theta: 0.05,
+  vega: 0,
+  bid: mid - 0.1,
+  ask: mid + 0.1,
+  mid,
+  openInterest: 1000,
+  volume: 10,
+});
+
+const callCandidate = (strike: number, mid: number, delta = 0.3): CandidateStrike => ({
+  expiry: '2026-05-31',
+  dte: 36,
+  strike,
+  optionType: 'call',
   delta,
   theta: 0.05,
   vega: 0,
@@ -121,8 +141,8 @@ describe('selectStrategy', () => {
     expect(selectStrategy('BULLISH', 60, true, 1.5, 'ANY', undefined)).toBe('PUT_CREDIT_SPREAD');
   });
 
-  it('returns IRON_CONDOR for NEUTRAL trend with IV rank >= 60 and low ATR', () => {
-    expect(selectStrategy('NEUTRAL', 65, true, 1.5, 'ANY', undefined)).toBe('IRON_CONDOR');
+  it('returns CSP for neutral trend without shares', () => {
+    expect(selectStrategy('NEUTRAL', 65, true, 1.5, 'ANY', undefined)).toBe('CSP');
   });
 
   it('returns CSP for BEARISH trend with sufficient IV rank', () => {
@@ -172,5 +192,58 @@ describe('selectCandidateStrike', () => {
     );
 
     expect(candidate).toBeUndefined();
+  });
+});
+
+describe('candidateRejectionReasons', () => {
+  it('rejects missing candidates', () => {
+    expect(candidateRejectionReasons(undefined, watchlistItem, false)).toEqual([
+      'No mechanically valid candidate trade was found in the option chain.',
+    ]);
+  });
+
+  it('rejects candidates with poor liquidity', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([
+        { ...putCandidate(240, 2.2), openInterest: 100 },
+        { ...putCandidate(235, 1), openInterest: 100 },
+      ]),
+      fundamentals,
+      technicals,
+      watchlistItem,
+      'PUT_CREDIT_SPREAD',
+    );
+
+    expect(candidateRejectionReasons(candidate, watchlistItem, false)[0]).toContain(
+      'Liquidity below threshold: open interest 100',
+    );
+  });
+
+  it('rejects candidates below the target yield', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidate(putCandidate(220, 1.2)),
+      fundamentals,
+      technicals,
+      watchlistItem,
+      'CSP',
+    );
+
+    expect(
+      candidateRejectionReasons(candidate, { ...watchlistItem, targetYieldPct: 10 }, false),
+    ).toContain('Annualised yield 5.5% is below target 10.0%.');
+  });
+
+  it('rejects covered calls with ex-dividend risk inside the expiry window', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidate(callCandidate(260, 2.4, 0.3)),
+      fundamentals,
+      technicals,
+      { ...watchlistItem, sharesHeld: 100 },
+      'COVERED_CALL',
+    );
+
+    expect(
+      candidateRejectionReasons(candidate, { ...watchlistItem, sharesHeld: 100 }, true),
+    ).toContain('Ex-dividend date falls inside the expiry window for this covered call.');
   });
 });

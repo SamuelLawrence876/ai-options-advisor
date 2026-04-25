@@ -418,7 +418,6 @@ liquidity_ok = open_interest > 500 AND spread_pct < 10%
 ```
 if trend == BULLISH and iv_rank >= 50 and earnings_clear → CSP or PUT_CREDIT_SPREAD
 if trend == NEUTRAL and iv_rank >= 50 and earnings_clear → COVERED_CALL
-if trend == NEUTRAL/BULLISH and iv_rank >= 60 and atr_low → IRON_CONDOR
 if iv_rank < 50 → SKIP
 if earnings_in_window → SKIP (override everything)
 ```
@@ -555,7 +554,7 @@ One Bedrock call per ticker. Ask Claude to return structured JSON:
 ```json
 {
   "symbol": "AAPL",
-  "recommendation": "COVERED_CALL | PUT_CREDIT_SPREAD | CSP | IRON_CONDOR | SKIP | WATCH",
+  "recommendation": "COVERED_CALL | PUT_CREDIT_SPREAD | CSP | SKIP | WATCH",
   "confidence": "HIGH | MEDIUM | LOW",
   "adjusted_strike": 197.5,
   "adjusted_expiry": "2026-05-16",

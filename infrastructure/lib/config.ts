@@ -3,7 +3,6 @@ export const config = {
   deploymentRegion: 'us-east-1',
 
   secrets: {
-    flashAlphaApiKey: (stage: string) => `/options-advisor/${stage}/flash-alpha-api-key`,
     marketDataApiToken: (stage: string) => `/options-advisor/${stage}/market-data-api-token`,
     finnhubApiKey: (stage: string) => `/options-advisor/${stage}/finnhub-api-key`,
     polygonApiKey: (stage: string) => `/options-advisor/${stage}/polygon-api-key`,

@@ -33,7 +33,6 @@ const STRATEGY_EMOJI: Record<StrategyRecommendation, string> = {
   COVERED_CALL: '📞',
   PUT_CREDIT_SPREAD: '📉',
   CSP: '💵',
-  IRON_CONDOR: '🦅',
   SKIP: '⏭️',
   WATCH: '👀',
 };

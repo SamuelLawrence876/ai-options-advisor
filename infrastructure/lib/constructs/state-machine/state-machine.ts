@@ -61,7 +61,7 @@ export class PipelineStateMachine extends Construct {
     // ── Step 2: Per-ticker data collection (parallel within each ticker) ──
     const fetchOptionsDataStep = new LambdaInvoke(this, 'FetchOptionsData', {
       lambdaFunction: fetchOptionsData,
-      comment: 'Fetch IV rank, Greeks, vol surface from FlashAlpha',
+      comment: 'Fetch IV rank, Greeks, vol surface from MarketData.app',
       payload: TaskInput.fromObject({
         'ticker.$': '$.ticker',
         'date.$': '$.date',

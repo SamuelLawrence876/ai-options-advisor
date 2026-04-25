@@ -10,7 +10,6 @@ const marketContext: MarketContext = {
   qqqPrice: 400,
   qqqTrend: 'NEUTRAL',
   marketTrend: 'NEUTRAL',
-  sectorIvs: {},
   fetchedAt: '2026-04-25T00:00:00.000Z',
 };
 

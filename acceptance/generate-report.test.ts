@@ -73,7 +73,7 @@ const fixtureEnrichedTicker: EnrichedTicker = {
   date: TEST_DATE,
   vrp: optionsFixture.iv30d - optionsFixture.hv30d,
   ivRankSignal: 'SELL_ENVIRONMENT',
-  ivVsSector: 'ABOVE',
+  candidateRejectionReasons: [],
   earningsInWindow: false,
   earningsProximity: 'CLEAR',
   exDivInWindow: false,

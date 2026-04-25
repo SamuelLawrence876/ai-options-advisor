@@ -12,5 +12,8 @@ export function buildSkipReason(enriched: EnrichedTicker): string {
       enriched.rawOptions.ivRankSource === 'CHAIN_PROXY' ? 'Chain-proxy IV rank' : 'IV rank';
     return `${source} ${rank} below threshold (min: 50) — insufficient premium environment.`;
   }
+  if (enriched.candidateRejectionReasons.length > 0) {
+    return enriched.candidateRejectionReasons.join(' ');
+  }
   return 'Data unavailable for one or more required inputs.';
 }

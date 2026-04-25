@@ -15,7 +15,7 @@ import { DeliverReport } from './constructs/functions/deliver-report';
 import { PipelineStateMachine } from './constructs/state-machine/state-machine';
 import { Scheduler } from './constructs/scheduler/scheduler';
 
-export type StackType = 'prod' | 'dev';
+export type StackType = 'prod' | 'dev' | 'ephemeral';
 
 export interface OptionsAnalysisStackProps extends StackProps {
   stackType: StackType;

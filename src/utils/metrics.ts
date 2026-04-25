@@ -66,7 +66,6 @@ export function computeMaxLoss(strategy: StrategyRecommendation, params: MaxLoss
     case 'PUT_CREDIT_SPREAD':
       return Math.max(0, ((spreadWidth ?? 5) - premiumCollected) * 100);
     case 'CSP':
-    case 'IRON_CONDOR':
       return (strike - premiumCollected) * 100;
     default:
       return 0;
@@ -83,7 +82,6 @@ export function computeBpr(
       return sharePrice * 100;
     case 'PUT_CREDIT_SPREAD':
     case 'CSP':
-    case 'IRON_CONDOR':
       return maxLoss;
     default:
       return maxLoss;

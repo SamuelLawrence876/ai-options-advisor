@@ -59,7 +59,6 @@ describe('enrichAndScore Lambda', () => {
     expect(enriched.ticker.symbol).toBe(ticker.symbol);
     expect(typeof enriched.vrp).toBe('number');
     expect(['SELL_ENVIRONMENT', 'SKIP']).toContain(enriched.ivRankSignal);
-    expect(['ABOVE', 'BELOW', 'INLINE']).toContain(enriched.ivVsSector);
     expect(typeof enriched.earningsInWindow).toBe('boolean');
     expect(['CLEAR', 'CAUTION', 'DANGER']).toContain(enriched.earningsProximity);
     expect(typeof enriched.liquidityOk).toBe('boolean');
