@@ -1,6 +1,6 @@
 import { OhlcvBar } from '../../types';
 import { fetchCboeVix } from '../../utils/clients/cboe';
-import { fetchFinnhubQuote } from '../../utils/clients/finnhub';
+import { fetchFinnhubQuote } from '../../utils/clients/finnhubQuote';
 import { fetchPolygonOhlcv } from '../../utils/clients/polygon';
 
 export interface MarketBarsResult {

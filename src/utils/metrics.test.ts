@@ -1,16 +1,12 @@
 import {
-  classifyMarketTrend,
   classifyTrend,
-  classifyVixRegime,
-  computeAnnualisedYield,
   computeAtr,
   computeHistoricalVolatility,
-  computeBpr,
-  computeIvRank,
-  computeMaxLoss,
   computeMovingAverage,
-  computeRobp,
-} from './metrics';
+} from './technicalIndicators';
+import { classifyMarketTrend, classifyVixRegime } from './marketRegime';
+import { computeIvRank } from './impliedVolatility';
+import { computeAnnualisedYield, computeBpr, computeMaxLoss, computeRobp } from './optionRisk';
 import { OhlcvBar } from '../types';
 
 const bar = (close: number, high?: number, low?: number): OhlcvBar => ({

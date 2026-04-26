@@ -1,16 +1,8 @@
-import {
-  CandidateStrike,
-  FundamentalsData,
-  OptionsData,
-  TechnicalsData,
-  WatchlistItem,
-} from '../../types';
-import {
-  candidateRejectionReasons,
-  earningsProximity,
-  selectCandidateStrike,
-  selectStrategy,
-} from './strategy';
+import { CandidateStrike, OptionsData, TechnicalsData, WatchlistItem } from '../../types';
+import { candidateRejectionReasons } from './candidateRejectionReasons';
+import { selectCandidateStrike } from './candidateStrikeSelection';
+import { earningsProximity } from './earningsProximity';
+import { selectStrategy } from './strategySelection';
 
 const watchlistItem: WatchlistItem = {
   symbol: 'AMZN',
@@ -18,11 +10,6 @@ const watchlistItem: WatchlistItem = {
   minDte: 21,
   maxDte: 45,
   active: true,
-};
-
-const fundamentals: FundamentalsData = {
-  symbol: 'AMZN',
-  fetchedAt: '2026-04-25T00:00:00.000Z',
 };
 
 const technicals: TechnicalsData = {
@@ -158,7 +145,6 @@ describe('selectCandidateStrike', () => {
   it('returns undefined for credit spreads with credit greater than spread width', () => {
     const candidate = selectCandidateStrike(
       optionsWithCandidates([putCandidate(240, 6), putCandidate(235, 0.5)]),
-      fundamentals,
       technicals,
       watchlistItem,
       'PUT_CREDIT_SPREAD',
@@ -170,7 +156,6 @@ describe('selectCandidateStrike', () => {
   it('returns a positive-risk credit spread when credit is below spread width', () => {
     const candidate = selectCandidateStrike(
       optionsWithCandidates([putCandidate(240, 2.2), putCandidate(235, 1)]),
-      fundamentals,
       technicals,
       watchlistItem,
       'PUT_CREDIT_SPREAD',
@@ -185,7 +170,6 @@ describe('selectCandidateStrike', () => {
   it('returns undefined when no long put exists for a credit spread', () => {
     const candidate = selectCandidateStrike(
       optionsWithCandidate(putCandidate(240, 1.2)),
-      fundamentals,
       technicals,
       watchlistItem,
       'PUT_CREDIT_SPREAD',
@@ -208,7 +192,6 @@ describe('candidateRejectionReasons', () => {
         { ...putCandidate(240, 2.2), openInterest: 100 },
         { ...putCandidate(235, 1), openInterest: 100 },
       ]),
-      fundamentals,
       technicals,
       watchlistItem,
       'PUT_CREDIT_SPREAD',
@@ -222,7 +205,6 @@ describe('candidateRejectionReasons', () => {
   it('rejects candidates below the target yield', () => {
     const candidate = selectCandidateStrike(
       optionsWithCandidate(putCandidate(220, 1.2)),
-      fundamentals,
       technicals,
       watchlistItem,
       'CSP',
@@ -236,7 +218,6 @@ describe('candidateRejectionReasons', () => {
   it('rejects covered calls with ex-dividend risk inside the expiry window', () => {
     const candidate = selectCandidateStrike(
       optionsWithCandidate(callCandidate(260, 2.4, 0.3)),
-      fundamentals,
       technicals,
       { ...watchlistItem, sharesHeld: 100 },
       'COVERED_CALL',

@@ -1,7 +1,7 @@
 import { MarketContext, OptionsData, WatchlistItem } from '../../types';
 import { fetchMarketDataOptions } from '../../utils/clients/marketData';
 import { info } from '../../utils/logger';
-import { getJson, putJson } from '../../utils/aws/s3';
+import { getJson, putJson } from '../../utils/aws/s3Json';
 import { getSecretValue } from '../../utils/aws/secrets';
 
 interface FetchOptionsDataEvent {

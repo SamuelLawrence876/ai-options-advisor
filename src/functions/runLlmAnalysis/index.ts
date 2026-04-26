@@ -6,7 +6,7 @@ import {
   WatchlistItem,
 } from '../../types';
 import { invokeModel } from '../../utils/aws/bedrock';
-import { getHumanContext } from '../../utils/aws/dynamodb';
+import { getHumanContext } from '../../utils/aws/humanContextRepository';
 import { withCandidateMetrics, withTopPickMetrics } from '../../utils/analysisMetrics';
 import { formatDossier } from '../../utils/dossier';
 import { info } from '../../utils/logger';

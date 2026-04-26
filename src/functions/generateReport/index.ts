@@ -1,7 +1,7 @@
 import { EnrichedTicker, MarketContext, PortfolioSynthesis, TickerAnalysis } from '../../types';
 import { withCandidateMetrics, withTopPickMetrics } from '../../utils/analysisMetrics';
 import { info } from '../../utils/logger';
-import { putMarkdown } from '../../utils/aws/s3';
+import { putMarkdown } from '../../utils/aws/s3Text';
 import { buildReport } from './templates';
 
 interface GenerateReportEvent {

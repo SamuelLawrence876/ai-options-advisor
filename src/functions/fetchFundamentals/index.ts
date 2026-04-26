@@ -1,13 +1,15 @@
 import { FundamentalsData, MarketContext, WatchlistItem } from '../../types';
 import { error, info } from '../../utils/logger';
-import { getJson, putJson } from '../../utils/aws/s3';
+import { getJson, putJson } from '../../utils/aws/s3Json';
 import { getSecretValue } from '../../utils/aws/secrets';
 import {
-  fetchFinnhubDividendYield,
   fetchFinnhubPriceTarget,
   fetchFinnhubRecommendations,
+} from '../../utils/clients/finnhubAnalystInsights';
+import {
+  fetchFinnhubDividendYield,
   fetchFinnhubUpcomingDividend,
-} from '../../utils/clients/finnhub';
+} from '../../utils/clients/finnhubDividends';
 import { daysBetween, dateOffsetDays, resolveApiDate } from '../../utils/dates';
 import { deriveAnalystConsensus } from './analystConsensus';
 

@@ -7,15 +7,13 @@ import {
   WatchlistItem,
 } from '../../types';
 import { info } from '../../utils/logger';
-import { getIvSnapshots } from '../../utils/aws/dynamodb';
-import { getJson, putJson } from '../../utils/aws/s3';
-import { computeIvRank } from '../../utils/metrics';
-import {
-  candidateRejectionReasons,
-  earningsProximity,
-  selectCandidateStrike,
-  selectStrategy,
-} from './strategy';
+import { getIvSnapshots } from '../../utils/aws/ivSnapshotRepository';
+import { getJson, putJson } from '../../utils/aws/s3Json';
+import { computeIvRank } from '../../utils/impliedVolatility';
+import { candidateRejectionReasons } from './candidateRejectionReasons';
+import { selectCandidateStrike } from './candidateStrikeSelection';
+import { earningsProximity } from './earningsProximity';
+import { selectStrategy } from './strategySelection';
 
 interface EnrichAndScoreEvent {
   ticker: WatchlistItem;
@@ -74,7 +72,6 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
 
   const candidateTrade = selectCandidateStrike(
     effectiveOptions,
-    fundamentals,
     technicals,
     ticker,
     preScreenStrategy,

@@ -1,10 +1,11 @@
 import { MarketContext, MarketTrend, WatchlistItem } from '../../types';
-import { getActiveWatchlist } from '../../utils/aws/dynamodb';
+import { getActiveWatchlist } from '../../utils/aws/watchlistRepository';
 import { error, info } from '../../utils/logger';
-import { classifyMarketTrend, classifyVixRegime, computeMovingAverage } from '../../utils/metrics';
-import { putJson } from '../../utils/aws/s3';
+import { classifyMarketTrend, classifyVixRegime } from '../../utils/marketRegime';
+import { computeMovingAverage } from '../../utils/technicalIndicators';
+import { putJson } from '../../utils/aws/s3Json';
 import { getSecretValue } from '../../utils/aws/secrets';
-import { fetchFinnhubEarningsCalendar } from '../../utils/clients/finnhub';
+import { fetchFinnhubEarningsCalendar } from '../../utils/clients/finnhubEarnings';
 import { dateOffsetDays, resolveApiDate } from '../../utils/dates';
 import { fetchMarketBars } from './marketBars';
 

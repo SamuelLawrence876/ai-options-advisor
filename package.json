@@ -25,9 +25,9 @@
     "deploy:dev": "cdk deploy --context stackType=dev --require-approval never",
     "diff": "cdk diff --context stackType=prod",
     "diff:dev": "cdk diff --context stackType=dev",
-    "analyse": "bash scripts/run-analysis.sh",
-    "analyse:dev": "bash scripts/run-analysis.sh --stage dev",
-    "analyse:date": "bash scripts/run-analysis.sh --date",
+    "analyze": "bash scripts/run-analysis.sh",
+    "analyze:dev": "bash scripts/run-analysis.sh --stage dev",
+    "analyze:date": "bash scripts/run-analysis.sh --date",
     "seed": "bash scripts/seed-watchlist.sh",
     "seed:dev": "bash scripts/seed-watchlist.sh dev"
   },

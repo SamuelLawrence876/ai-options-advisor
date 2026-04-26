@@ -5,9 +5,11 @@ import {
   ReportMetadata,
   TickerAnalysis,
 } from '../../types';
-import { putIvSnapshot, putReportMetadata } from '../../utils/aws/dynamodb';
+import { putIvSnapshot } from '../../utils/aws/ivSnapshotRepository';
+import { putReportMetadata } from '../../utils/aws/reportMetadataRepository';
 import { error, info } from '../../utils/logger';
-import { getText, getPresignedUrl } from '../../utils/aws/s3';
+import { getPresignedUrl } from '../../utils/aws/s3PresignedUrl';
+import { getText } from '../../utils/aws/s3Text';
 import { getSecretValue } from '../../utils/aws/secrets';
 import { sendDiscordReport } from './discord';
 import { buildEmailBody, sendEmail } from './email';

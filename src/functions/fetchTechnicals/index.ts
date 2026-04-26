@@ -5,10 +5,10 @@ import {
   computeHistoricalVolatility,
   computeMovingAverage,
   classifyTrend,
-} from '../../utils/metrics';
-import { putJson } from '../../utils/aws/s3';
+} from '../../utils/technicalIndicators';
+import { putJson } from '../../utils/aws/s3Json';
 import { getSecretValue } from '../../utils/aws/secrets';
-import { fetchFinnhubQuote } from '../../utils/clients/finnhub';
+import { fetchFinnhubQuote } from '../../utils/clients/finnhubQuote';
 import { fetchPolygonOhlcv } from '../../utils/clients/polygon';
 import { dateOffsetDays, resolveApiDate } from '../../utils/dates';
 
