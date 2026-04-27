@@ -58,6 +58,18 @@ const fixtureSynthesis: PortfolioSynthesis = {
       reasoning: 'IV rank elevated at 62, bullish trend, no near-term catalysts.',
       risks: ['Near 52w high', 'Ex-dividend in 11 days'],
     },
+    {
+      symbol: 'MSFT',
+      strategy: 'IRON_CONDOR',
+      tradeDescription: 'Sell the MSFT 380/375 put spread and 420/425 call spread, 28 DTE, collect $1.50',
+      maxLoss: 350,
+      buyingPower: 350,
+      annualisedYield: 195.7,
+      robpAnnualised: 195.7,
+      confidence: 'MEDIUM',
+      reasoning: 'IV rank in neutral zone, trend neutral — iron condor captures range-bound premium.',
+      risks: ['Gap risk on earnings'],
+    },
   ],
   executiveSummary:
     'Normal VIX environment with bullish market trend. AAPL offers the best ROBP this week with IV rank at 62 and clear earnings window.',
@@ -136,6 +148,13 @@ describe('generateReport Lambda', () => {
     expect(report).toContain('ROBP');
     expect(report).toContain('AAPL');
     expect(report).toContain(marketContextFixture.vixRegime);
+  });
+
+  it('renders iron condor pick with correct emoji', async () => {
+    const report = await getTextObject(bucket, `reports/${TEST_DATE}.md`);
+    expect(report).toContain('MSFT');
+    expect(report).toContain('🦅');
+    expect(report).toContain('IRON CONDOR');
   });
 
   it('returns synthesis and ticker analyses for pipeline chaining', () => {

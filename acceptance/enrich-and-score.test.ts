@@ -58,7 +58,7 @@ describe('enrichAndScore Lambda', () => {
 
     expect(enriched.ticker.symbol).toBe(ticker.symbol);
     expect(typeof enriched.vrp).toBe('number');
-    expect(['SELL_ENVIRONMENT', 'SKIP']).toContain(enriched.ivRankSignal);
+    expect(['SELL_ENVIRONMENT', 'BUY_ENVIRONMENT', 'SKIP']).toContain(enriched.ivRankSignal);
     expect(typeof enriched.earningsInWindow).toBe('boolean');
     expect(['CLEAR', 'CAUTION', 'DANGER']).toContain(enriched.earningsProximity);
     expect(typeof enriched.liquidityOk).toBe('boolean');
@@ -74,8 +74,32 @@ describe('enrichAndScore Lambda', () => {
     expect(enriched.vrp).toBeCloseTo(expectedVrp, 2);
   });
 
-  it('strategy is SKIP when IV rank is below 50', async () => {
-    const lowIvOptions = { ...optionsFixture, ivRank: 35 };
+  it('strategy is SKIP when IV rank is in the neutral zone', async () => {
+    const neutralIvOptions = { ...optionsFixture, ivRank: 45 };
+    await putJsonObject(
+      bucket,
+      `raw-data/${TEST_DATE}/${ticker.symbol}/options.json`,
+      neutralIvOptions,
+    );
+
+    const result = await invokeLambda<EnrichedTicker>(names.enrichAndScoreFn, {
+      ticker,
+      date: TEST_DATE,
+      marketContext: marketContextFixture,
+    });
+
+    expect(result.payload.suggestedStrategy).toBe('SKIP');
+    expect(result.payload.ivRankSignal).toBe('SKIP');
+
+    await putJsonObject(
+      bucket,
+      `raw-data/${TEST_DATE}/${ticker.symbol}/options.json`,
+      optionsFixture,
+    );
+  });
+
+  it('ivRankSignal is BUY_ENVIRONMENT when IV rank is at or below 35', async () => {
+    const lowIvOptions = { ...optionsFixture, ivRank: 20 };
     await putJsonObject(
       bucket,
       `raw-data/${TEST_DATE}/${ticker.symbol}/options.json`,
@@ -88,7 +112,7 @@ describe('enrichAndScore Lambda', () => {
       marketContext: marketContextFixture,
     });
 
-    expect(result.payload.suggestedStrategy).toBe('SKIP');
+    expect(result.payload.ivRankSignal).toBe('BUY_ENVIRONMENT');
 
     await putJsonObject(
       bucket,

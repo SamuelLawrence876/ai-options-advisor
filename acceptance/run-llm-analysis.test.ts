@@ -103,7 +103,11 @@ describe('runLlmAnalysis Lambda — Stage 1 (per ticker)', () => {
   });
 
   it('returns a valid recommendation', () => {
-    const validRecommendations = ['COVERED_CALL', 'PUT_CREDIT_SPREAD', 'CSP', 'SKIP', 'WATCH'];
+    const validRecommendations = [
+      'COVERED_CALL', 'PUT_CREDIT_SPREAD', 'CALL_CREDIT_SPREAD',
+      'CALL_DEBIT_SPREAD', 'PUT_DEBIT_SPREAD', 'IRON_CONDOR',
+      'CSP', 'SKIP', 'WATCH',
+    ];
     expect(validRecommendations).toContain(analysis.recommendation);
   });
 
