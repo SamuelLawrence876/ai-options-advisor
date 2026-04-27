@@ -17,6 +17,7 @@ function makeEnriched(overrides: Partial<EnrichedTicker>): EnrichedTicker {
       candidateStrikes: [],
       fetchedAt: '',
     },
+    rawTechnicals: { trend: 'NEUTRAL' },
     ...overrides,
   } as unknown as EnrichedTicker;
 }
@@ -49,13 +50,14 @@ describe('buildSkipReason', () => {
     expect(buildSkipReason(enriched)).toContain('unknown date');
   });
 
-  it('returns IV rank reason when IV rank signal is SKIP', () => {
+  it('uses Chain-proxy source label when ivRankSource is CHAIN_PROXY', () => {
     const enriched = makeEnriched({
       earningsInWindow: false,
       ivRankSignal: 'SKIP',
       rawOptions: {
-        symbol: 'JPM',
-        ivRank: 32,
+        symbol: 'XOM',
+        ivRank: 42,
+        ivRankSource: 'CHAIN_PROXY',
         ivPercentile: 0,
         iv30d: 0,
         hv30d: 0,
@@ -67,8 +69,55 @@ describe('buildSkipReason', () => {
 
     const reason = buildSkipReason(enriched);
 
-    expect(reason).toContain('IV rank 32');
-    expect(reason).toContain('min: 50');
+    expect(reason).toContain('Chain-proxy IV rank');
+    expect(reason).toContain('threshold (65)');
+  });
+
+  it('returns neutral-zone message when IV rank signal is SKIP', () => {
+    const enriched = makeEnriched({
+      earningsInWindow: false,
+      ivRankSignal: 'SKIP',
+      rawOptions: {
+        symbol: 'JPM',
+        ivRank: 42,
+        ivPercentile: 0,
+        iv30d: 0,
+        hv30d: 0,
+        volSurface: [],
+        candidateStrikes: [],
+        fetchedAt: '',
+      },
+    });
+
+    const reason = buildSkipReason(enriched);
+
+    expect(reason).toContain('IV rank 42.00');
+    expect(reason).toContain('neutral zone');
+    expect(reason).toContain('threshold (50)');
+    expect(reason).toContain('threshold (35)');
+  });
+
+  it('returns low-IV message when IV rank signal is BUY_ENVIRONMENT but trend is neutral', () => {
+    const enriched = makeEnriched({
+      earningsInWindow: false,
+      ivRankSignal: 'BUY_ENVIRONMENT',
+      rawOptions: {
+        symbol: 'AAPL',
+        ivRank: 22,
+        ivPercentile: 0,
+        iv30d: 0,
+        hv30d: 0,
+        volSurface: [],
+        candidateStrikes: [],
+        fetchedAt: '',
+      },
+    });
+
+    const reason = buildSkipReason(enriched);
+
+    expect(reason).toContain('IV rank 22.00');
+    expect(reason).toContain('low IV');
+    expect(reason).toContain('no directional trend');
   });
 
   it('earnings reason takes priority over IV rank', () => {

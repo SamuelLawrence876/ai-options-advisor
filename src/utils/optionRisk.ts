@@ -13,7 +13,11 @@ export function computeMaxLoss(strategy: StrategyRecommendation, params: MaxLoss
     case 'COVERED_CALL':
       return ((costBasis ?? strike) - premiumCollected) * 100;
     case 'PUT_CREDIT_SPREAD':
+    case 'CALL_CREDIT_SPREAD':
       return Math.max(0, ((spreadWidth ?? 5) - premiumCollected) * 100);
+    case 'CALL_DEBIT_SPREAD':
+    case 'PUT_DEBIT_SPREAD':
+      return premiumCollected * 100;
     case 'CSP':
       return (strike - premiumCollected) * 100;
     default:
@@ -30,6 +34,9 @@ export function computeBpr(
     case 'COVERED_CALL':
       return sharePrice * 100;
     case 'PUT_CREDIT_SPREAD':
+    case 'CALL_CREDIT_SPREAD':
+    case 'CALL_DEBIT_SPREAD':
+    case 'PUT_DEBIT_SPREAD':
     case 'CSP':
       return maxLoss;
     default:

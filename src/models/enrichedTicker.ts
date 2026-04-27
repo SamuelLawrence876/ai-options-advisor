@@ -9,7 +9,7 @@ export interface EnrichedTicker {
   ticker: WatchlistItem;
   date: string;
   vrp: number;
-  ivRankSignal: 'SELL_ENVIRONMENT' | 'SKIP';
+  ivRankSignal: 'SELL_ENVIRONMENT' | 'BUY_ENVIRONMENT' | 'SKIP';
   candidateRejectionReasons: string[];
   earningsInWindow: boolean;
   earningsProximity: EarningsProximity;

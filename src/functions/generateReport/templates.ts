@@ -32,6 +32,9 @@ const TREND_EMOJI: Record<MarketTrend, string> = {
 const STRATEGY_EMOJI: Record<StrategyRecommendation, string> = {
   COVERED_CALL: '📞',
   PUT_CREDIT_SPREAD: '📉',
+  CALL_CREDIT_SPREAD: '📈',
+  CALL_DEBIT_SPREAD: '🎯',
+  PUT_DEBIT_SPREAD: '🎯',
   CSP: '💵',
   SKIP: '⏭️',
   WATCH: '👀',

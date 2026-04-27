@@ -132,8 +132,8 @@ describe('selectStrategy', () => {
     expect(selectStrategy('NEUTRAL', 65, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('CSP');
   });
 
-  it('returns SKIP for BEARISH trend', () => {
-    expect(selectStrategy('BEARISH', 60, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('SKIP');
+  it('returns CALL_CREDIT_SPREAD for BEARISH trend with sufficient IV rank', () => {
+    expect(selectStrategy('BEARISH', 60, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('CALL_CREDIT_SPREAD');
   });
 
   it('earnings block takes priority over IV rank block', () => {
@@ -143,6 +143,34 @@ describe('selectStrategy', () => {
   it('requires IV rank >= 65 when source is CHAIN_PROXY', () => {
     expect(selectStrategy('BULLISH', 60, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('SKIP');
     expect(selectStrategy('BULLISH', 65, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('PUT_CREDIT_SPREAD');
+  });
+
+  it('returns SKIP for BEARISH trend when IV rank is below threshold', () => {
+    expect(selectStrategy('BEARISH', 49, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('SKIP');
+  });
+
+  it('returns CALL_DEBIT_SPREAD for BULLISH trend when IV rank is in buy zone', () => {
+    expect(selectStrategy('BULLISH', 30, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('CALL_DEBIT_SPREAD');
+  });
+
+  it('returns PUT_DEBIT_SPREAD for BEARISH trend when IV rank is in buy zone', () => {
+    expect(selectStrategy('BEARISH', 25, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('PUT_DEBIT_SPREAD');
+  });
+
+  it('returns SKIP for NEUTRAL trend when IV rank is in buy zone', () => {
+    expect(selectStrategy('NEUTRAL', 20, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('SKIP');
+  });
+
+  it('returns SKIP when IV rank is in the neutral zone between thresholds', () => {
+    expect(selectStrategy('BULLISH', 42, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('SKIP');
+  });
+
+  it('returns CALL_CREDIT_SPREAD for BEARISH trend with CHAIN_PROXY IV rank >= 65', () => {
+    expect(selectStrategy('BEARISH', 65, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('CALL_CREDIT_SPREAD');
+  });
+
+  it('returns COVERED_CALL over CALL_CREDIT_SPREAD when strategyPref is COVERED_CALL, shares held, and trend is BEARISH', () => {
+    expect(selectStrategy('BEARISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 100)).toBe('COVERED_CALL');
   });
 });
 
@@ -180,6 +208,208 @@ describe('selectCandidateStrike', () => {
       'PUT_CREDIT_SPREAD',
     );
 
+    expect(candidate).toBeUndefined();
+  });
+
+  it('returns a call credit spread with correct metrics', () => {
+    // short call strike 250 @ 2.5, long call strike 255 @ 1.0
+    // credit = 1.5, width = 5, max loss = (5 - 1.5) * 100 = 350
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([callCandidate(250, 2.5, 0.27), callCandidate(255, 1.0, 0.15)]),
+      technicals,
+      watchlistItem,
+      'CALL_CREDIT_SPREAD',
+    );
+
+    expect(candidate?.strategy).toBe('CALL_CREDIT_SPREAD');
+    expect(candidate?.strike).toBe(250);
+    expect(candidate?.longStrike).toBe(255);
+    expect(candidate?.maxLoss).toBe(350);
+    expect(candidate?.bpr).toBe(350);
+    expect(candidate?.robpAnnualised).toBeGreaterThan(0);
+  });
+
+  it('returns undefined for call credit spread when credit exceeds spread width', () => {
+    // credit 6 > width 5 — invalid
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([callCandidate(250, 7.0, 0.27), callCandidate(255, 1.0, 0.15)]),
+      technicals,
+      watchlistItem,
+      'CALL_CREDIT_SPREAD',
+    );
+
+    expect(candidate).toBeUndefined();
+  });
+
+  it('returns undefined for call credit spread when no long call exists', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidate(callCandidate(250, 2.5, 0.27)),
+      technicals,
+      watchlistItem,
+      'CALL_CREDIT_SPREAD',
+    );
+
+    expect(candidate).toBeUndefined();
+  });
+
+  it('returns a call debit spread with correct metrics', () => {
+    // long call strike 240 @ 4.0 (delta 0.50), short call strike 245 @ 1.5 (delta 0.28)
+    // net debit = 2.5, width = 5, max loss = 2.5 * 100 = 250, max profit = (5 - 2.5) * 100 = 250
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([callCandidate(240, 4.0, 0.5), callCandidate(245, 1.5, 0.28)]),
+      technicals,
+      watchlistItem,
+      'CALL_DEBIT_SPREAD',
+    );
+
+    expect(candidate?.strategy).toBe('CALL_DEBIT_SPREAD');
+    expect(candidate?.strike).toBe(240);
+    expect(candidate?.longStrike).toBe(245);
+    expect(candidate?.maxLoss).toBe(250);
+    expect(candidate?.bpr).toBe(250);
+    expect(candidate?.robpAnnualised).toBeGreaterThan(0);
+  });
+
+  it('returns undefined for call debit spread when net debit exceeds spread width', () => {
+    // debit 6 > width 5 — invalid
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([callCandidate(240, 7.0, 0.5), callCandidate(245, 0.5, 0.28)]),
+      technicals,
+      watchlistItem,
+      'CALL_DEBIT_SPREAD',
+    );
+
+    expect(candidate).toBeUndefined();
+  });
+
+  it('returns a put debit spread with correct metrics', () => {
+    // long put strike 240 @ 4.0 (delta -0.50), short put strike 235 @ 1.5 (delta -0.28)
+    // net debit = 2.5, width = 5, max loss = 250
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([putCandidate(240, 4.0, -0.5), putCandidate(235, 1.5, -0.28)]),
+      technicals,
+      watchlistItem,
+      'PUT_DEBIT_SPREAD',
+    );
+
+    expect(candidate?.strategy).toBe('PUT_DEBIT_SPREAD');
+    expect(candidate?.strike).toBe(240);
+    expect(candidate?.longStrike).toBe(235);
+    expect(candidate?.maxLoss).toBe(250);
+    expect(candidate?.bpr).toBe(250);
+    expect(candidate?.robpAnnualised).toBeGreaterThan(0);
+  });
+
+  it('returns undefined for put debit spread when no short put exists below long put', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidate(putCandidate(240, 4.0, -0.5)),
+      technicals,
+      watchlistItem,
+      'PUT_DEBIT_SPREAD',
+    );
+
+    expect(candidate).toBeUndefined();
+  });
+});
+
+describe('selectCandidateStrike sort comparators', () => {
+  it('call debit spread selects long call closest to delta 0.5 when multiple qualify', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([
+        callCandidate(238, 5.0, 0.48),
+        callCandidate(240, 4.0, 0.52),
+        callCandidate(245, 1.5, 0.28),
+      ]),
+      technicals,
+      watchlistItem,
+      'CALL_DEBIT_SPREAD',
+    );
+    // delta 0.48 and 0.52 are equidistant from 0.5; 0.52 is selected first (stable sort)
+    expect(candidate?.strategy).toBe('CALL_DEBIT_SPREAD');
+    expect(candidate?.robpAnnualised).toBeGreaterThan(0);
+  });
+
+  it('call debit spread selects short call closest to delta 0.3 when multiple qualify', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([
+        callCandidate(240, 4.0, 0.5),
+        callCandidate(244, 1.8, 0.25),
+        callCandidate(245, 1.5, 0.28),
+      ]),
+      technicals,
+      watchlistItem,
+      'CALL_DEBIT_SPREAD',
+    );
+    expect(candidate?.strategy).toBe('CALL_DEBIT_SPREAD');
+    expect(candidate?.longStrike).toBeDefined();
+  });
+
+  it('put debit spread selects long put closest to delta -0.5 when multiple qualify', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([
+        putCandidate(242, 4.2, -0.48),
+        putCandidate(240, 4.0, -0.52),
+        putCandidate(235, 1.5, -0.28),
+      ]),
+      technicals,
+      watchlistItem,
+      'PUT_DEBIT_SPREAD',
+    );
+    expect(candidate?.strategy).toBe('PUT_DEBIT_SPREAD');
+    expect(candidate?.robpAnnualised).toBeGreaterThan(0);
+  });
+
+  it('call credit spread selects short call closest to delta 0.27 when multiple qualify', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([
+        callCandidate(250, 2.5, 0.26),
+        callCandidate(252, 2.2, 0.28),
+        callCandidate(258, 1.0, 0.15),
+      ]),
+      technicals,
+      watchlistItem,
+      'CALL_CREDIT_SPREAD',
+    );
+    expect(candidate?.strategy).toBe('CALL_CREDIT_SPREAD');
+    expect(candidate?.strike).toBeDefined();
+  });
+
+  it('put credit spread selects short put closest to delta -0.27 when multiple qualify', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([
+        putCandidate(238, 2.5, -0.26),
+        putCandidate(236, 2.2, -0.28),
+        putCandidate(232, 1.0, -0.15),
+      ]),
+      technicals,
+      watchlistItem,
+      'PUT_CREDIT_SPREAD',
+    );
+    expect(candidate?.strategy).toBe('PUT_CREDIT_SPREAD');
+    expect(candidate?.strike).toBeDefined();
+  });
+
+  it('covered call selects call closest to delta 0.3 when multiple qualify', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([
+        callCandidate(258, 3.0, 0.27),
+        callCandidate(260, 2.4, 0.32),
+      ]),
+      technicals,
+      { ...watchlistItem, sharesHeld: 100 },
+      'COVERED_CALL',
+    );
+    expect(candidate?.strategy).toBe('COVERED_CALL');
+    expect(candidate?.delta).toBeDefined();
+  });
+
+  it('returns undefined for covered call when no qualifying call strike exists', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([callCandidate(260, 2.4, 0.1)]),
+      technicals,
+      { ...watchlistItem, sharesHeld: 100 },
+      'COVERED_CALL',
+    );
     expect(candidate).toBeUndefined();
   });
 });

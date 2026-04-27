@@ -21,6 +21,27 @@ const candidateTrade = {
 };
 
 describe('analysisMetrics', () => {
+  it('returns analysis unchanged when enriched ticker has no candidate trade', () => {
+    const analysis = {
+      symbol: 'AAPL',
+      recommendation: 'SKIP',
+      confidence: 'LOW',
+      reasoning: 'Low IV.',
+      risks: [],
+      flags: [],
+      adjustedStrike: null,
+      adjustedExpiry: null,
+      annualisedYield: null,
+      maxLoss: null,
+      buyingPowerRequired: null,
+      robpAnnualised: null,
+    } as unknown as TickerAnalysis;
+
+    const enriched = { candidateTrade: undefined } as unknown as EnrichedTicker;
+
+    expect(withCandidateMetrics(analysis, enriched)).toBe(analysis);
+  });
+
   it('uses candidate trade metrics as the source of truth for ticker analysis', () => {
     const analysis = {
       symbol: 'AAPL',

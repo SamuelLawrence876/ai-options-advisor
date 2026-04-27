@@ -1,6 +1,9 @@
 export type StrategyRecommendation =
   | 'COVERED_CALL'
   | 'PUT_CREDIT_SPREAD'
+  | 'CALL_CREDIT_SPREAD'
+  | 'CALL_DEBIT_SPREAD'
+  | 'PUT_DEBIT_SPREAD'
   | 'CSP'
   | 'SKIP'
   | 'WATCH';

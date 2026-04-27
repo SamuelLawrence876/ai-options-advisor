@@ -11,18 +11,22 @@ export function selectStrategy(
 ): StrategyRecommendation {
   if (!earningsClear) return 'SKIP';
 
-  // Require a higher IV rank when we only have the chain proxy — it can
-  // exceed 50 in a genuinely low-IV environment due to outlier strikes.
-  const ivThreshold = ivRankSource === 'HISTORICAL' ? 50 : 65;
-  if (ivRank < ivThreshold) return 'SKIP';
-
+  const sellThreshold = ivRankSource === 'HISTORICAL' ? 50 : 65;
+  const buyThreshold = 35;
   const canSellCoveredCall = (sharesHeld ?? 0) >= 100;
 
-  if (strategyPref === 'COVERED_CALL' && canSellCoveredCall) return 'COVERED_CALL';
-  if (trend === 'BULLISH') return 'PUT_CREDIT_SPREAD';
-  if (trend === 'BEARISH') return 'SKIP';
-  if (trend === 'NEUTRAL') {
+  if (ivRank >= sellThreshold) {
+    if (strategyPref === 'COVERED_CALL' && canSellCoveredCall) return 'COVERED_CALL';
+    if (trend === 'BULLISH') return 'PUT_CREDIT_SPREAD';
+    if (trend === 'BEARISH') return 'CALL_CREDIT_SPREAD';
     return canSellCoveredCall ? 'COVERED_CALL' : 'CSP';
   }
-  return 'CSP';
+
+  if (ivRank <= buyThreshold) {
+    if (trend === 'BULLISH') return 'CALL_DEBIT_SPREAD';
+    if (trend === 'BEARISH') return 'PUT_DEBIT_SPREAD';
+    return 'SKIP';
+  }
+
+  return 'SKIP';
 }

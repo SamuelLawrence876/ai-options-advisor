@@ -1,4 +1,4 @@
-import { daysBetween, dateOffsetDays } from './dates';
+import { daysBetween, dateOffsetDays, resolveApiDate } from './dates';
 
 const FIXED_NOW = '2026-01-15T00:00:00.000Z';
 
@@ -44,5 +44,19 @@ describe('dateOffsetDays', () => {
 
   it('handles zero offset', () => {
     expect(dateOffsetDays('2026-04-24', 0)).toBe('2026-04-24');
+  });
+});
+
+describe('resolveApiDate', () => {
+  it('returns the input unchanged when it is a valid YYYY-MM-DD date', () => {
+    expect(resolveApiDate('2026-04-25')).toBe('2026-04-25');
+  });
+
+  it('falls back to today when the input is not a valid date string', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-25T00:00:00.000Z'));
+    expect(resolveApiDate('today')).toBe('2026-04-25');
+    expect(resolveApiDate('')).toBe('2026-04-25');
+    jest.useRealTimers();
   });
 });

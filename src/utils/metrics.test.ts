@@ -33,8 +33,17 @@ describe('computeMovingAverage', () => {
 });
 
 describe('computeAtr', () => {
+  it('returns 0 for empty bar array', () => {
+    expect(computeAtr([], 14)).toBe(0);
+  });
+
   it('returns 0 when fewer than 2 bars', () => {
     expect(computeAtr([bar(100)], 14)).toBe(0);
+  });
+
+  it('uses default period of 14 when no period is supplied', () => {
+    const bars = Array.from({ length: 15 }, () => bar(100, 105, 95));
+    expect(computeAtr(bars)).toBeCloseTo(10);
   });
 
   it('computes average true range for uniform bars', () => {
@@ -49,8 +58,21 @@ describe('computeHistoricalVolatility', () => {
     expect(computeHistoricalVolatility(closes, 10)).toBeGreaterThan(0);
   });
 
+  it('returns 0 for empty closes array', () => {
+    expect(computeHistoricalVolatility([], 30)).toBe(0);
+  });
+
   it('returns 0 when there are not enough returns', () => {
     expect(computeHistoricalVolatility([100], 30)).toBe(0);
+  });
+
+  it('uses default period of 30 when no period is supplied', () => {
+    const closes = Array.from({ length: 35 }, (_, i) => 100 + i);
+    expect(computeHistoricalVolatility(closes)).toBeGreaterThan(0);
+  });
+
+  it('returns 0 when all closes are zero (no valid log returns)', () => {
+    expect(computeHistoricalVolatility([0, 0, 0, 0, 0], 3)).toBe(0);
   });
 });
 
@@ -112,6 +134,24 @@ describe('computeMaxLoss', () => {
     ).toBe(0);
   });
 
+  it('CALL_CREDIT_SPREAD uses spread width minus premium', () => {
+    expect(
+      computeMaxLoss('CALL_CREDIT_SPREAD', { spreadWidth: 5, strike: 100, premiumCollected: 1 }),
+    ).toBe(400);
+  });
+
+  it('PUT_CREDIT_SPREAD falls back to default spread width of 5 when not provided', () => {
+    expect(
+      computeMaxLoss('PUT_CREDIT_SPREAD', { strike: 100, premiumCollected: 1 }),
+    ).toBe(400);
+  });
+
+  it('CALL_CREDIT_SPREAD does not return negative max loss for invalid credits', () => {
+    expect(
+      computeMaxLoss('CALL_CREDIT_SPREAD', { spreadWidth: 5, strike: 100, premiumCollected: 6 }),
+    ).toBe(0);
+  });
+
   it('CSP uses strike minus premium', () => {
     expect(computeMaxLoss('CSP', { strike: 100, premiumCollected: 2 })).toBe(9800);
   });
@@ -124,6 +164,38 @@ describe('computeBpr', () => {
 
   it('CSP BPR equals max loss', () => {
     expect(computeBpr('CSP', 150, 9800)).toBe(9800);
+  });
+
+  it('CALL_CREDIT_SPREAD BPR equals max loss', () => {
+    expect(computeBpr('CALL_CREDIT_SPREAD', 150, 400)).toBe(400);
+  });
+
+  it('PUT_CREDIT_SPREAD BPR equals max loss', () => {
+    expect(computeBpr('PUT_CREDIT_SPREAD', 150, 400)).toBe(400);
+  });
+
+  it('CALL_DEBIT_SPREAD max loss equals net debit times 100', () => {
+    expect(computeMaxLoss('CALL_DEBIT_SPREAD', { strike: 240, premiumCollected: 2.5 })).toBe(250);
+  });
+
+  it('PUT_DEBIT_SPREAD max loss equals net debit times 100', () => {
+    expect(computeMaxLoss('PUT_DEBIT_SPREAD', { strike: 240, premiumCollected: 2.5 })).toBe(250);
+  });
+
+  it('CALL_DEBIT_SPREAD BPR equals max loss', () => {
+    expect(computeBpr('CALL_DEBIT_SPREAD', 150, 250)).toBe(250);
+  });
+
+  it('PUT_DEBIT_SPREAD BPR equals max loss', () => {
+    expect(computeBpr('PUT_DEBIT_SPREAD', 150, 250)).toBe(250);
+  });
+
+  it('SKIP strategy returns 0 for max loss', () => {
+    expect(computeMaxLoss('SKIP', { strike: 100, premiumCollected: 1 })).toBe(0);
+  });
+
+  it('WATCH strategy returns max loss for BPR', () => {
+    expect(computeBpr('WATCH', 150, 500)).toBe(500);
   });
 });
 
@@ -167,5 +239,13 @@ describe('computeIvRank', () => {
 
   it('returns undefined when history is insufficient', () => {
     expect(computeIvRank(30, [10, 20, 30, 40])).toBeUndefined();
+  });
+
+  it('returns 100 when all historical IVs are the same and current IV is at that level', () => {
+    expect(computeIvRank(30, [30, 30, 30, 30, 30])).toBe(100);
+  });
+
+  it('returns 0 when all historical IVs are the same and current IV is below', () => {
+    expect(computeIvRank(20, [30, 30, 30, 30, 30])).toBe(0);
   });
 });
