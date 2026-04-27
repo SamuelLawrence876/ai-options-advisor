@@ -44,6 +44,19 @@ const fixtureAnalysis: TickerAnalysis = {
   robpAnnualised: 14.8,
 };
 
+const fixtureIronCondorAnalysis: TickerAnalysis = {
+  symbol: 'MSFT',
+  recommendation: 'IRON_CONDOR',
+  confidence: 'MEDIUM',
+  reasoning: 'IV rank in neutral zone, trend neutral — iron condor captures range-bound premium.',
+  risks: ['Gap risk on earnings'],
+  flags: [],
+  annualisedYield: 195.7,
+  maxLoss: 350,
+  buyingPowerRequired: 350,
+  robpAnnualised: 195.7,
+};
+
 const fixtureSynthesis: PortfolioSynthesis = {
   topPicks: [
     {
@@ -126,7 +139,7 @@ beforeAll(async () => {
     tickerAnalyses: TickerAnalysis[];
   }>(names.generateReportFn, {
     synthesis: fixtureSynthesis,
-    tickerAnalyses: [fixtureAnalysis],
+    tickerAnalyses: [fixtureAnalysis, fixtureIronCondorAnalysis],
     enrichedTickers: [fixtureEnrichedTicker],
     date: TEST_DATE,
     marketContext: marketContextFixture,
