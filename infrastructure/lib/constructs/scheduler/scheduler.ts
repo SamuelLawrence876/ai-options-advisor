@@ -17,8 +17,8 @@ export class Scheduler extends Construct {
 
     new Rule(this, 'WeekdaySchedule', {
       ruleName: addStagePrefix(stage, 'options-analysis-weekday'),
-      description: 'Triggers the options analysis pipeline Monday-Friday at 06:00 UTC',
-      schedule: Schedule.cron({ minute: '0', hour: '6', weekDay: 'MON-FRI' }),
+      description: 'Triggers the options analysis pipeline Monday-Friday at 13:30 UTC (09:30 ET)',
+      schedule: Schedule.cron({ minute: '30', hour: '13', weekDay: 'MON-FRI' }),
       targets: [new SfnStateMachine(stateMachine)],
     });
   }
