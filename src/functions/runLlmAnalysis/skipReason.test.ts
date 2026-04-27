@@ -70,7 +70,7 @@ describe('buildSkipReason', () => {
     const reason = buildSkipReason(enriched);
 
     expect(reason).toContain('Chain-proxy IV rank');
-    expect(reason).toContain('threshold (65)');
+    expect(reason).toContain('threshold (60)');
   });
 
   it('returns neutral-zone message when IV rank signal is SKIP', () => {

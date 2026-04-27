@@ -140,9 +140,9 @@ describe('selectStrategy', () => {
     expect(selectStrategy('BULLISH', 30, 'HISTORICAL', false, 1.5, 'ANY', undefined)).toBe('SKIP');
   });
 
-  it('requires IV rank >= 65 when source is CHAIN_PROXY', () => {
-    expect(selectStrategy('BULLISH', 60, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('SKIP');
-    expect(selectStrategy('BULLISH', 65, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('PUT_CREDIT_SPREAD');
+  it('requires IV rank >= 60 when source is CHAIN_PROXY', () => {
+    expect(selectStrategy('BULLISH', 59, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('SKIP');
+    expect(selectStrategy('BULLISH', 60, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('PUT_CREDIT_SPREAD');
   });
 
   it('returns SKIP for BEARISH trend when IV rank is below threshold', () => {
@@ -174,8 +174,8 @@ describe('selectStrategy', () => {
     expect(selectStrategy('NEUTRAL', 50, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('IRON_CONDOR');
   });
 
-  it('returns CALL_CREDIT_SPREAD for BEARISH trend with CHAIN_PROXY IV rank >= 65', () => {
-    expect(selectStrategy('BEARISH', 65, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('CALL_CREDIT_SPREAD');
+  it('returns CALL_CREDIT_SPREAD for BEARISH trend with CHAIN_PROXY IV rank >= 60', () => {
+    expect(selectStrategy('BEARISH', 60, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('CALL_CREDIT_SPREAD');
   });
 
   it('returns COVERED_CALL over CALL_CREDIT_SPREAD when strategyPref is COVERED_CALL, shares held, and trend is BEARISH', () => {

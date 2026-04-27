@@ -51,7 +51,7 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
   // Guard against hv30d=0 (its default when technicals are unavailable), which
   // would make VRP appear spuriously positive (iv30d - 0 = iv30d).
   const vrp = effectiveOptions.hv30d > 0 ? effectiveOptions.iv30d - effectiveOptions.hv30d : 0;
-  const sellThreshold = effectiveOptions.ivRankSource === 'HISTORICAL' ? 50 : 65;
+  const sellThreshold = effectiveOptions.ivRankSource === 'HISTORICAL' ? 50 : 60;
   const buyThreshold = 35;
   const ivRankSignal =
     effectiveOptions.ivRank >= sellThreshold

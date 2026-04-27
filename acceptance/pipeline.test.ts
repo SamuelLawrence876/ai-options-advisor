@@ -7,7 +7,7 @@ import { OptionsData, WatchlistItem } from '../src/types';
 
 jest.setTimeout(25 * 60 * 1000);
 
-const TEST_DATE = process.env.TEST_DATE ?? new Date().toISOString().slice(0, 10);
+const TEST_DATE = process.env.TEST_DATE ?? `pipeline-acceptance-${Date.now()}`;
 const stage = getStage();
 const region = getRegion();
 const names = resourceNames(stage);

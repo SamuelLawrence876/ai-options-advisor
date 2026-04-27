@@ -13,7 +13,7 @@ export function buildSkipReason(enriched: EnrichedTicker): string {
     const rank = enriched.rawOptions.ivRank.toFixed(2);
     const isProxy = enriched.rawOptions.ivRankSource === 'CHAIN_PROXY';
     const source = isProxy ? 'Chain-proxy IV rank' : 'IV rank';
-    const sellThreshold = isProxy ? 65 : 50;
+    const sellThreshold = isProxy ? 60 : 50;
     return `${source} ${rank} in neutral zone — below premium-selling threshold (${sellThreshold}) and above debit-spread threshold (35).`;
   }
   if (enriched.ivRankSignal === 'BUY_ENVIRONMENT') {

@@ -11,7 +11,7 @@ export function selectStrategy(
 ): StrategyRecommendation {
   if (!earningsClear) return 'SKIP';
 
-  const sellThreshold = ivRankSource === 'HISTORICAL' ? 50 : 65;
+  const sellThreshold = ivRankSource === 'HISTORICAL' ? 50 : 60;
   const buyThreshold = 35;
   const canSellCoveredCall = (sharesHeld ?? 0) >= 100;
 
