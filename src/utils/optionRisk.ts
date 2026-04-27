@@ -14,6 +14,7 @@ export function computeMaxLoss(strategy: StrategyRecommendation, params: MaxLoss
       return ((costBasis ?? strike) - premiumCollected) * 100;
     case 'PUT_CREDIT_SPREAD':
     case 'CALL_CREDIT_SPREAD':
+    case 'IRON_CONDOR':
       return Math.max(0, ((spreadWidth ?? 5) - premiumCollected) * 100);
     case 'CALL_DEBIT_SPREAD':
     case 'PUT_DEBIT_SPREAD':
@@ -35,6 +36,7 @@ export function computeBpr(
       return sharePrice * 100;
     case 'PUT_CREDIT_SPREAD':
     case 'CALL_CREDIT_SPREAD':
+    case 'IRON_CONDOR':
     case 'CALL_DEBIT_SPREAD':
     case 'PUT_DEBIT_SPREAD':
     case 'CSP':

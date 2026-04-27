@@ -104,6 +104,17 @@ describe('buildReport', () => {
     expect(report).toContain('VIX elevated');
   });
 
+  it('renders iron condor with correct emoji in top picks and watchlist', () => {
+    const synthesis: PortfolioSynthesis = {
+      ...emptySynthesis,
+      topPicks: [makePick('AAPL', 'IRON_CONDOR')],
+    };
+    const analyses = [makeAnalysis('AAPL', 'IRON_CONDOR')];
+    const report = buildReport(synthesis, analyses, [], '2026-04-25', marketContext);
+    expect(report).toContain('🦅');
+    expect(report).toContain('IRON CONDOR');
+  });
+
   it('renders portfolio notes section when ROBP vs yield divergences are present', () => {
     const synthesis: PortfolioSynthesis = {
       ...emptySynthesis,

@@ -28,5 +28,7 @@ export function selectStrategy(
     return 'SKIP';
   }
 
+  // Neutral zone (between buy and sell thresholds): iron condor for neutral trend only
+  if (trend === 'NEUTRAL') return 'IRON_CONDOR';
   return 'SKIP';
 }

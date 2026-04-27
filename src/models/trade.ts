@@ -4,6 +4,7 @@ export type StrategyRecommendation =
   | 'CALL_CREDIT_SPREAD'
   | 'CALL_DEBIT_SPREAD'
   | 'PUT_DEBIT_SPREAD'
+  | 'IRON_CONDOR'
   | 'CSP'
   | 'SKIP'
   | 'WATCH';
@@ -22,6 +23,8 @@ export interface CandidateTrade extends TradeMetrics {
   dte: number;
   strike: number;
   longStrike?: number;
+  callStrike?: number;
+  callLongStrike?: number;
   delta: number;
   theta: number;
   premiumMid: number;

@@ -18,6 +18,10 @@ function spreadPct(bid: number, ask: number): number {
   return ask > 0 ? ((ask - bid) / ask) * 100 : 100;
 }
 
+function computeTargetWidth(atr14: number): number {
+  return Math.max(3, Math.min(10, Math.round(atr14)));
+}
+
 function selectLongLeg(candidates: StrikeCandidate[]): StrikeCandidate | undefined {
   return candidates
     .filter(c => Math.abs(c.delta) >= 0.45 && Math.abs(c.delta) <= 0.65)
@@ -38,6 +42,8 @@ function buildCallDebitSpread(callCandidates: StrikeCandidate[]): CandidateTrade
   const ask = longCall.ask - shortCall.bid;
   const width = shortCall.strike - longCall.strike;
   if (netDebit <= 0 || netDebit >= width || ask <= 0) return undefined;
+  // Require at least 1:1 reward:risk (max profit >= net debit paid)
+  if (width - netDebit < netDebit) return undefined;
 
   const maxLoss = computeMaxLoss('CALL_DEBIT_SPREAD', { strike: longCall.strike, premiumCollected: netDebit });
   const bpr = computeBpr('CALL_DEBIT_SPREAD', 0, maxLoss);
@@ -79,6 +85,8 @@ function buildPutDebitSpread(putCandidates: StrikeCandidate[]): CandidateTrade |
   const ask = longPut.ask - shortPut.bid;
   const width = longPut.strike - shortPut.strike;
   if (netDebit <= 0 || netDebit >= width || ask <= 0) return undefined;
+  // Require at least 1:1 reward:risk (max profit >= net debit paid)
+  if (width - netDebit < netDebit) return undefined;
 
   const maxLoss = computeMaxLoss('PUT_DEBIT_SPREAD', { strike: longPut.strike, premiumCollected: netDebit });
   const bpr = computeBpr('PUT_DEBIT_SPREAD', 0, maxLoss);
@@ -112,17 +120,24 @@ function selectShortCall(candidates: StrikeCandidate[]): StrikeCandidate | undef
     .sort((a, b) => Math.abs(a.delta - 0.27) - Math.abs(b.delta - 0.27))[0];
 }
 
+// Sorts long-leg candidates by closeness to targetWidth and picks the first one
+// that provides a valid credit of at least 1/3 of the spread width.
 function selectLongCall(
   candidates: StrikeCandidate[],
   shortCall: StrikeCandidate,
+  targetWidth: number,
 ): StrikeCandidate | undefined {
   return candidates
     .filter(c => c.expiry === shortCall.expiry && c.strike > shortCall.strike)
-    .sort((a, b) => a.strike - b.strike)
+    .sort((a, b) => {
+      const distA = Math.abs(a.strike - shortCall.strike - targetWidth);
+      const distB = Math.abs(b.strike - shortCall.strike - targetWidth);
+      return distA - distB;
+    })
     .find(longCall => {
       const width = longCall.strike - shortCall.strike;
       const credit = shortCall.mid - longCall.mid;
-      return width > 0 && credit > 0 && credit < width;
+      return width > 0 && credit > 0 && credit < width && credit >= width * 0.33;
     });
 }
 
@@ -130,10 +145,11 @@ function buildCallCreditSpread(
   callCandidates: StrikeCandidate[],
   technicals: TechnicalsData,
 ): CandidateTrade | undefined {
+  const targetWidth = computeTargetWidth(technicals.atr14);
   const shortCall = selectShortCall(callCandidates);
   if (!shortCall) return undefined;
 
-  const longCall = selectLongCall(callCandidates, shortCall);
+  const longCall = selectLongCall(callCandidates, shortCall, targetWidth);
   if (!longCall) return undefined;
 
   const premium = shortCall.mid - longCall.mid;
@@ -179,17 +195,24 @@ function selectShortPut(candidates: StrikeCandidate[]): StrikeCandidate | undefi
     .sort((a, b) => Math.abs(Math.abs(a.delta) - 0.27) - Math.abs(Math.abs(b.delta) - 0.27))[0];
 }
 
+// Sorts long-leg candidates by closeness to targetWidth and picks the first one
+// that provides a valid credit of at least 1/3 of the spread width.
 function selectLongPut(
   candidates: StrikeCandidate[],
   shortPut: StrikeCandidate,
+  targetWidth: number,
 ): StrikeCandidate | undefined {
   return candidates
     .filter(c => c.expiry === shortPut.expiry && c.strike < shortPut.strike)
-    .sort((a, b) => b.strike - a.strike)
+    .sort((a, b) => {
+      const distA = Math.abs(shortPut.strike - a.strike - targetWidth);
+      const distB = Math.abs(shortPut.strike - b.strike - targetWidth);
+      return distA - distB;
+    })
     .find(longPut => {
       const width = shortPut.strike - longPut.strike;
       const credit = shortPut.mid - longPut.mid;
-      return width > 0 && credit > 0 && credit < width;
+      return width > 0 && credit > 0 && credit < width && credit >= width * 0.33;
     });
 }
 
@@ -197,10 +220,11 @@ function buildPutCreditSpread(
   putCandidates: StrikeCandidate[],
   technicals: TechnicalsData,
 ): CandidateTrade | undefined {
+  const targetWidth = computeTargetWidth(technicals.atr14);
   const shortPut = selectShortPut(putCandidates);
   if (!shortPut) return undefined;
 
-  const longPut = selectLongPut(putCandidates, shortPut);
+  const longPut = selectLongPut(putCandidates, shortPut, targetWidth);
   if (!longPut) return undefined;
 
   const premium = shortPut.mid - longPut.mid;
@@ -237,6 +261,73 @@ function buildPutCreditSpread(
     robpAnnualised,
     liquidityOk:
       Math.min(shortPut.openInterest, longPut.openInterest) > 500 && spreadPct(bid, ask) < 10,
+  };
+}
+
+function buildIronCondor(
+  putCandidates: StrikeCandidate[],
+  callCandidates: StrikeCandidate[],
+  technicals: TechnicalsData,
+): CandidateTrade | undefined {
+  const targetWidth = computeTargetWidth(technicals.atr14);
+
+  const shortPut = selectShortPut(putCandidates);
+  if (!shortPut) return undefined;
+  const longPut = selectLongPut(putCandidates, shortPut, targetWidth);
+  if (!longPut) return undefined;
+
+  const sameExpiryCalls = callCandidates.filter(c => c.expiry === shortPut.expiry);
+  const shortCall = selectShortCall(sameExpiryCalls);
+  if (!shortCall) return undefined;
+  const longCall = selectLongCall(sameExpiryCalls, shortCall, targetWidth);
+  if (!longCall) return undefined;
+
+  const putCredit = shortPut.mid - longPut.mid;
+  const callCredit = shortCall.mid - longCall.mid;
+  const netCredit = putCredit + callCredit;
+
+  const putWidth = shortPut.strike - longPut.strike;
+  const callWidth = longCall.strike - shortCall.strike;
+  const maxWidth = Math.max(putWidth, callWidth);
+
+  if (netCredit <= 0 || netCredit >= maxWidth) return undefined;
+
+  const bid = shortPut.bid + shortCall.bid - longPut.ask - longCall.ask;
+  const ask = shortPut.ask + shortCall.ask - longPut.bid - longCall.bid;
+  if (bid <= 0 || ask <= 0) return undefined;
+
+  const sp = spreadPct(bid, ask);
+  const oi = Math.min(shortPut.openInterest, longPut.openInterest, shortCall.openInterest, longCall.openInterest);
+
+  const maxLoss = computeMaxLoss('IRON_CONDOR', {
+    spreadWidth: maxWidth,
+    strike: shortPut.strike,
+    premiumCollected: netCredit,
+  });
+  const bpr = computeBpr('IRON_CONDOR', technicals.price, maxLoss);
+  const robpAnnualised = computeRobp(netCredit, bpr, shortPut.dte);
+  const annualisedYield = computeAnnualisedYield(netCredit, shortPut.strike, shortPut.dte);
+
+  return {
+    strategy: 'IRON_CONDOR',
+    expiry: shortPut.expiry,
+    dte: shortPut.dte,
+    strike: shortPut.strike,
+    longStrike: longPut.strike,
+    callStrike: shortCall.strike,
+    callLongStrike: longCall.strike,
+    delta: shortPut.delta,
+    theta: shortPut.theta + shortCall.theta - longPut.theta - longCall.theta,
+    premiumMid: netCredit,
+    bid,
+    ask,
+    spreadPct: sp,
+    openInterest: oi,
+    maxLoss,
+    bpr,
+    annualisedYield,
+    robpAnnualised,
+    liquidityOk: oi > 500 && sp < 10,
   };
 }
 
@@ -284,6 +375,10 @@ export function selectCandidateStrike(
 
   if (strategy === 'PUT_DEBIT_SPREAD') {
     return buildPutDebitSpread(putCandidates);
+  }
+
+  if (strategy === 'IRON_CONDOR') {
+    return buildIronCondor(putCandidates, callCandidates, technicals);
   }
 
   if (strategy === 'COVERED_CALL') {

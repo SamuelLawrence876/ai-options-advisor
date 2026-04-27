@@ -145,6 +145,16 @@ describe('buildSkipReason', () => {
     expect(buildSkipReason(enriched)).toContain('Earnings in 4 days');
   });
 
+  it('rejection reason takes priority over neutral-zone IV signal', () => {
+    const enriched = makeEnriched({
+      ivRankSignal: 'SKIP',
+      candidateRejectionReasons: ['No mechanically valid candidate trade was found in the option chain.'],
+    });
+
+    expect(buildSkipReason(enriched)).toContain('No mechanically valid');
+    expect(buildSkipReason(enriched)).not.toContain('neutral zone');
+  });
+
   it('returns data unavailable as fallback', () => {
     const enriched = makeEnriched({
       earningsInWindow: false,

@@ -35,6 +35,7 @@ const STRATEGY_EMOJI: Record<StrategyRecommendation, string> = {
   CALL_CREDIT_SPREAD: '📈',
   CALL_DEBIT_SPREAD: '🎯',
   PUT_DEBIT_SPREAD: '🎯',
+  IRON_CONDOR: '🦅',
   CSP: '💵',
   SKIP: '⏭️',
   WATCH: '👀',

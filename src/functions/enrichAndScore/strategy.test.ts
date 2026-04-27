@@ -161,8 +161,17 @@ describe('selectStrategy', () => {
     expect(selectStrategy('NEUTRAL', 20, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('SKIP');
   });
 
-  it('returns SKIP when IV rank is in the neutral zone between thresholds', () => {
+  it('returns SKIP for directional trend when IV rank is in neutral zone', () => {
     expect(selectStrategy('BULLISH', 42, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('SKIP');
+    expect(selectStrategy('BEARISH', 42, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('SKIP');
+  });
+
+  it('returns IRON_CONDOR for NEUTRAL trend when IV rank is in the neutral zone (HISTORICAL)', () => {
+    expect(selectStrategy('NEUTRAL', 42, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('IRON_CONDOR');
+  });
+
+  it('returns IRON_CONDOR for NEUTRAL trend when IV rank is in the neutral zone (CHAIN_PROXY)', () => {
+    expect(selectStrategy('NEUTRAL', 50, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('IRON_CONDOR');
   });
 
   it('returns CALL_CREDIT_SPREAD for BEARISH trend with CHAIN_PROXY IV rank >= 65', () => {
@@ -186,17 +195,18 @@ describe('selectCandidateStrike', () => {
     expect(candidate).toBeUndefined();
   });
 
-  it('returns a positive-risk credit spread when credit is below spread width', () => {
+  it('returns a positive-risk credit spread when credit meets minimum threshold', () => {
+    // credit = 2.5 - 0.5 = 2.0, width = 5, 2.0 >= 5*0.33=1.65 ✓, max loss = (5-2)*100 = 300
     const candidate = selectCandidateStrike(
-      optionsWithCandidates([putCandidate(240, 2.2), putCandidate(235, 1)]),
+      optionsWithCandidates([putCandidate(240, 2.5), putCandidate(235, 0.5)]),
       technicals,
       watchlistItem,
       'PUT_CREDIT_SPREAD',
     );
 
     expect(candidate?.longStrike).toBe(235);
-    expect(candidate?.maxLoss).toBe(380);
-    expect(candidate?.bpr).toBe(380);
+    expect(candidate?.maxLoss).toBe(300);
+    expect(candidate?.bpr).toBe(300);
     expect(candidate?.robpAnnualised).toBeGreaterThan(0);
   });
 
@@ -211,11 +221,22 @@ describe('selectCandidateStrike', () => {
     expect(candidate).toBeUndefined();
   });
 
-  it('returns a call credit spread with correct metrics', () => {
-    // short call strike 250 @ 2.5, long call strike 255 @ 1.0
-    // credit = 1.5, width = 5, max loss = (5 - 1.5) * 100 = 350
+  it('returns undefined for put credit spread when credit is below 33% of spread width', () => {
+    // credit = 2.5 - 2.2 = 0.3, width = 5, 0.3 < 1.65 → rejected by long-leg selector
     const candidate = selectCandidateStrike(
-      optionsWithCandidates([callCandidate(250, 2.5, 0.27), callCandidate(255, 1.0, 0.15)]),
+      optionsWithCandidates([putCandidate(240, 2.5), putCandidate(235, 2.2)]),
+      technicals,
+      watchlistItem,
+      'PUT_CREDIT_SPREAD',
+    );
+
+    expect(candidate).toBeUndefined();
+  });
+
+  it('returns a call credit spread with correct metrics', () => {
+    // short call 250 @ 2.5, long call 255 @ 0.5 → credit=2.0, width=5, max loss=300
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([callCandidate(250, 2.5, 0.27), callCandidate(255, 0.5, 0.15)]),
       technicals,
       watchlistItem,
       'CALL_CREDIT_SPREAD',
@@ -224,13 +245,12 @@ describe('selectCandidateStrike', () => {
     expect(candidate?.strategy).toBe('CALL_CREDIT_SPREAD');
     expect(candidate?.strike).toBe(250);
     expect(candidate?.longStrike).toBe(255);
-    expect(candidate?.maxLoss).toBe(350);
-    expect(candidate?.bpr).toBe(350);
+    expect(candidate?.maxLoss).toBe(300);
+    expect(candidate?.bpr).toBe(300);
     expect(candidate?.robpAnnualised).toBeGreaterThan(0);
   });
 
   it('returns undefined for call credit spread when credit exceeds spread width', () => {
-    // credit 6 > width 5 — invalid
     const candidate = selectCandidateStrike(
       optionsWithCandidates([callCandidate(250, 7.0, 0.27), callCandidate(255, 1.0, 0.15)]),
       technicals,
@@ -252,9 +272,42 @@ describe('selectCandidateStrike', () => {
     expect(candidate).toBeUndefined();
   });
 
+  it('selects the long put closest to ATR-based target width when multiple candidates qualify', () => {
+    // atr14=4 → targetWidth=4. Candidates at width=4 (strike 236) and width=7 (strike 233).
+    // Both pass min credit. Width-4 candidate is preferred.
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([
+        putCandidate(240, 3.5, -0.27),
+        putCandidate(236, 1.8, -0.15), // width=4 (matches targetWidth=4), credit=1.7 >= 1.32 ✓
+        putCandidate(233, 1.0, -0.12), // width=7, credit=2.5 >= 2.31 ✓ (also qualifies)
+      ]),
+      technicals,
+      watchlistItem,
+      'PUT_CREDIT_SPREAD',
+    );
+
+    expect(candidate?.longStrike).toBe(236);
+  });
+
+  it('selects the long call closest to ATR-based target width when multiple candidates qualify', () => {
+    // atr14=4 → targetWidth=4. Long call at width=4 (strike 254) preferred over width=8 (strike 258).
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([
+        callCandidate(250, 2.5, 0.27),
+        callCandidate(254, 0.5, 0.15), // width=4 → preferred
+        callCandidate(258, 0.3, 0.10), // width=8
+      ]),
+      technicals,
+      watchlistItem,
+      'CALL_CREDIT_SPREAD',
+    );
+
+    expect(candidate?.longStrike).toBe(254);
+  });
+
   it('returns a call debit spread with correct metrics', () => {
-    // long call strike 240 @ 4.0 (delta 0.50), short call strike 245 @ 1.5 (delta 0.28)
-    // net debit = 2.5, width = 5, max loss = 2.5 * 100 = 250, max profit = (5 - 2.5) * 100 = 250
+    // long call 240 @ 4.0 (delta 0.50), short call 245 @ 1.5 (delta 0.28)
+    // net debit = 2.5, width = 5, max profit = 2.5, 1:1 ratio ✓
     const candidate = selectCandidateStrike(
       optionsWithCandidates([callCandidate(240, 4.0, 0.5), callCandidate(245, 1.5, 0.28)]),
       technicals,
@@ -271,7 +324,6 @@ describe('selectCandidateStrike', () => {
   });
 
   it('returns undefined for call debit spread when net debit exceeds spread width', () => {
-    // debit 6 > width 5 — invalid
     const candidate = selectCandidateStrike(
       optionsWithCandidates([callCandidate(240, 7.0, 0.5), callCandidate(245, 0.5, 0.28)]),
       technicals,
@@ -282,9 +334,21 @@ describe('selectCandidateStrike', () => {
     expect(candidate).toBeUndefined();
   });
 
+  it('returns undefined for call debit spread when reward:risk is below 1:1', () => {
+    // net debit = 3.5, width = 5, max profit = 1.5 < 3.5 debit → fails 1:1 check
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([callCandidate(240, 4.5, 0.5), callCandidate(245, 1.0, 0.28)]),
+      technicals,
+      watchlistItem,
+      'CALL_DEBIT_SPREAD',
+    );
+
+    expect(candidate).toBeUndefined();
+  });
+
   it('returns a put debit spread with correct metrics', () => {
-    // long put strike 240 @ 4.0 (delta -0.50), short put strike 235 @ 1.5 (delta -0.28)
-    // net debit = 2.5, width = 5, max loss = 250
+    // long put 240 @ 4.0 (delta -0.50), short put 235 @ 1.5 (delta -0.28)
+    // net debit = 2.5, width = 5, max profit = 2.5, 1:1 ratio ✓
     const candidate = selectCandidateStrike(
       optionsWithCandidates([putCandidate(240, 4.0, -0.5), putCandidate(235, 1.5, -0.28)]),
       technicals,
@@ -310,6 +374,136 @@ describe('selectCandidateStrike', () => {
 
     expect(candidate).toBeUndefined();
   });
+
+  it('returns undefined for put debit spread when reward:risk is below 1:1', () => {
+    // net debit = 3.5, width = 5, max profit = 1.5 < 3.5 → fails 1:1 check
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([putCandidate(240, 4.5, -0.5), putCandidate(235, 1.0, -0.28)]),
+      technicals,
+      watchlistItem,
+      'PUT_DEBIT_SPREAD',
+    );
+
+    expect(candidate).toBeUndefined();
+  });
+
+  it('returns a valid iron condor with correct four-leg strike structure', () => {
+    // atr14=4 → targetWidth=4. Put spread: 236/232. Call spread: 244/248. Net credit = 3.0.
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([
+        putCandidate(236, 2.0, -0.27),
+        putCandidate(232, 0.5, -0.15),
+        callCandidate(244, 2.0, 0.27),
+        callCandidate(248, 0.5, 0.15),
+      ]),
+      technicals,
+      watchlistItem,
+      'IRON_CONDOR',
+    );
+
+    expect(candidate?.strategy).toBe('IRON_CONDOR');
+    expect(candidate?.strike).toBe(236);       // short put
+    expect(candidate?.longStrike).toBe(232);   // long put
+    expect(candidate?.callStrike).toBe(244);   // short call
+    expect(candidate?.callLongStrike).toBe(248); // long call
+    expect(candidate?.maxLoss).toBe(100);      // (4 - 3.0) * 100
+    expect(candidate?.bpr).toBe(100);
+    expect(candidate?.robpAnnualised).toBeGreaterThan(0);
+  });
+
+  it('returns undefined for iron condor when no call candidates exist', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([
+        putCandidate(236, 2.0, -0.27),
+        putCandidate(232, 0.5, -0.15),
+      ]),
+      technicals,
+      watchlistItem,
+      'IRON_CONDOR',
+    );
+
+    expect(candidate).toBeUndefined();
+  });
+
+  it('returns undefined for iron condor when individual leg credit is insufficient', () => {
+    // Each long leg credit = 0.2 per wing — below the 33% min embedded in long-leg selector
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([
+        putCandidate(236, 2.0, -0.27),
+        putCandidate(232, 1.8, -0.15),
+        callCandidate(244, 2.0, 0.27),
+        callCandidate(248, 1.8, 0.15),
+      ]),
+      technicals,
+      watchlistItem,
+      'IRON_CONDOR',
+    );
+
+    expect(candidate).toBeUndefined();
+  });
+
+  it('returns undefined for call debit spread when no long call exists in delta range', () => {
+    // delta=0.3 is outside [0.45, 0.65] → selectLongLeg returns undefined
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([callCandidate(240, 4.0, 0.3), callCandidate(245, 1.5, 0.28)]),
+      technicals, watchlistItem, 'CALL_DEBIT_SPREAD',
+    );
+    expect(candidate).toBeUndefined();
+  });
+
+  it('returns undefined for put debit spread when no long put exists in delta range', () => {
+    // delta=-0.2 is outside [-0.45, -0.65] → selectLongLeg returns undefined
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([putCandidate(240, 4.0, -0.2), putCandidate(235, 1.5, -0.28)]),
+      technicals, watchlistItem, 'PUT_DEBIT_SPREAD',
+    );
+    expect(candidate).toBeUndefined();
+  });
+
+  it('returns undefined for call credit spread when no short call exists in delta range', () => {
+    // delta=0.5 is outside [0.25, 0.3] → selectShortCall returns undefined
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([callCandidate(240, 4.0, 0.5)]),
+      technicals, watchlistItem, 'CALL_CREDIT_SPREAD',
+    );
+    expect(candidate).toBeUndefined();
+  });
+
+  it('returns undefined for put credit spread when no short put exists in delta range', () => {
+    // delta=-0.5 is outside [-0.25, -0.3] → selectShortPut returns undefined
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([putCandidate(240, 4.0, -0.5)]),
+      technicals, watchlistItem, 'PUT_CREDIT_SPREAD',
+    );
+    expect(candidate).toBeUndefined();
+  });
+
+  it('returns undefined for iron condor when no qualifying short put exists', () => {
+    // delta=-0.5 is outside [-0.25, -0.3] → selectShortPut returns undefined
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([
+        putCandidate(236, 2.0, -0.5),
+        callCandidate(244, 2.0, 0.27),
+        callCandidate(248, 0.5, 0.15),
+      ]),
+      technicals, watchlistItem, 'IRON_CONDOR',
+    );
+    expect(candidate).toBeUndefined();
+  });
+
+  it('returns undefined when strategy is SKIP', () => {
+    expect(selectCandidateStrike(
+      optionsWithCandidates([putCandidate(240, 2.5)]),
+      technicals, watchlistItem, 'SKIP',
+    )).toBeUndefined();
+  });
+
+  it('returns undefined when strategy is WATCH', () => {
+    expect(selectCandidateStrike(
+      optionsWithCandidates([putCandidate(240, 2.5)]),
+      technicals, watchlistItem, 'WATCH',
+    )).toBeUndefined();
+  });
 });
 
 describe('selectCandidateStrike sort comparators', () => {
@@ -324,7 +518,6 @@ describe('selectCandidateStrike sort comparators', () => {
       watchlistItem,
       'CALL_DEBIT_SPREAD',
     );
-    // delta 0.48 and 0.52 are equidistant from 0.5; 0.52 is selected first (stable sort)
     expect(candidate?.strategy).toBe('CALL_DEBIT_SPREAD');
     expect(candidate?.robpAnnualised).toBeGreaterThan(0);
   });
@@ -359,12 +552,30 @@ describe('selectCandidateStrike sort comparators', () => {
     expect(candidate?.robpAnnualised).toBeGreaterThan(0);
   });
 
+  it('put debit spread selects short put closest to delta -0.3 when multiple qualify', () => {
+    // Two qualifying short puts: delta -0.25 (dist 0.05) vs -0.28 (dist 0.02) — -0.28 selected
+    const candidate = selectCandidateStrike(
+      optionsWithCandidates([
+        putCandidate(240, 4.0, -0.5),
+        putCandidate(235, 1.5, -0.25),
+        putCandidate(234, 1.4, -0.28),
+      ]),
+      technicals,
+      watchlistItem,
+      'PUT_DEBIT_SPREAD',
+    );
+    expect(candidate?.strategy).toBe('PUT_DEBIT_SPREAD');
+    expect(candidate?.longStrike).toBe(234);
+  });
+
   it('call credit spread selects short call closest to delta 0.27 when multiple qualify', () => {
+    // Two short call candidates equidistant from 0.27; two long call candidates for sort coverage
     const candidate = selectCandidateStrike(
       optionsWithCandidates([
         callCandidate(250, 2.5, 0.26),
-        callCandidate(252, 2.2, 0.28),
-        callCandidate(258, 1.0, 0.15),
+        callCandidate(252, 2.0, 0.28),
+        callCandidate(254, 0.5, 0.15), // width=4 from 250, qualifies
+        callCandidate(260, 0.3, 0.10), // width=10 from 250
       ]),
       technicals,
       watchlistItem,
@@ -375,11 +586,12 @@ describe('selectCandidateStrike sort comparators', () => {
   });
 
   it('put credit spread selects short put closest to delta -0.27 when multiple qualify', () => {
+    // Two long put candidates at equal ATR-distance; second provides enough credit
     const candidate = selectCandidateStrike(
       optionsWithCandidates([
         putCandidate(238, 2.5, -0.26),
         putCandidate(236, 2.2, -0.28),
-        putCandidate(232, 1.0, -0.15),
+        putCandidate(232, 0.5, -0.15), // credit=2.0 from 238, width=6, 2.0 >= 1.98 ✓
       ]),
       technicals,
       watchlistItem,
@@ -422,10 +634,11 @@ describe('candidateRejectionReasons', () => {
   });
 
   it('rejects candidates with poor liquidity', () => {
+    // credit = 2.5 - 0.5 = 2.0, width = 5, 2.0 >= 1.65 ✓ — trade is built but OI is low
     const candidate = selectCandidateStrike(
       optionsWithCandidates([
-        { ...putCandidate(240, 2.2), openInterest: 100 },
-        { ...putCandidate(235, 1), openInterest: 100 },
+        { ...putCandidate(240, 2.5), openInterest: 100 },
+        { ...putCandidate(235, 0.5), openInterest: 100 },
       ]),
       technicals,
       watchlistItem,

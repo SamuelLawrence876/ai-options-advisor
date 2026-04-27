@@ -190,8 +190,16 @@ describe('computeBpr', () => {
     expect(computeBpr('PUT_DEBIT_SPREAD', 150, 250)).toBe(250);
   });
 
+  it('IRON_CONDOR uses spread width minus premium', () => {
+    expect(computeMaxLoss('IRON_CONDOR', { spreadWidth: 4, strike: 236, premiumCollected: 3 })).toBe(100);
+  });
+
   it('SKIP strategy returns 0 for max loss', () => {
     expect(computeMaxLoss('SKIP', { strike: 100, premiumCollected: 1 })).toBe(0);
+  });
+
+  it('IRON_CONDOR BPR equals max loss', () => {
+    expect(computeBpr('IRON_CONDOR', 150, 100)).toBe(100);
   });
 
   it('WATCH strategy returns max loss for BPR', () => {

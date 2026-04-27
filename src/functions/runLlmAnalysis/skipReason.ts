@@ -6,6 +6,9 @@ export function buildSkipReason(enriched: EnrichedTicker): string {
     const date = enriched.rawFundamentals.earningsDate ?? 'unknown date';
     return `Earnings in ${dte} days (${date}) — inside expiry window. Re-evaluate after ${date}.`;
   }
+  if (enriched.candidateRejectionReasons.length > 0) {
+    return enriched.candidateRejectionReasons.join(' ');
+  }
   if (enriched.ivRankSignal === 'SKIP') {
     const rank = enriched.rawOptions.ivRank.toFixed(2);
     const isProxy = enriched.rawOptions.ivRankSource === 'CHAIN_PROXY';
@@ -16,9 +19,6 @@ export function buildSkipReason(enriched: EnrichedTicker): string {
   if (enriched.ivRankSignal === 'BUY_ENVIRONMENT') {
     const rank = enriched.rawOptions.ivRank.toFixed(2);
     return `IV rank ${rank} (low IV) — no directional trend to support a debit spread.`;
-  }
-  if (enriched.candidateRejectionReasons.length > 0) {
-    return enriched.candidateRejectionReasons.join(' ');
   }
   return 'Data unavailable for one or more required inputs.';
 }
