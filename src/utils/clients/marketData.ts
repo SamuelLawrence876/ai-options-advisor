@@ -154,10 +154,20 @@ export async function fetchMarketDataOptions(
     delta: candidate.delta,
   }));
 
-  const liquidIvs = ivs
-    .filter((iv, index) => Number.isFinite(iv) && iv > 0 && bids[index] > 0 && asks[index] > 0)
-    .map(iv => iv * 100);
-  const iv30d = average(liquidIvs);
+  // iv30d uses only near-ATM strikes (|delta| 0.40–0.60) to match the industry
+  // standard and avoid inflation from OTM skew. Full liquid set is still used
+  // for the proxy rank, which benefits from a wider sample.
+  const liquidIndices = ivs
+    .map((iv, index) => ({ iv, index }))
+    .filter(({ iv, index }) => Number.isFinite(iv) && iv > 0 && bids[index] > 0 && asks[index] > 0);
+
+  const atmIvs = liquidIndices
+    .filter(({ index }) => Math.abs(deltas[index]) >= 0.40 && Math.abs(deltas[index]) <= 0.60)
+    .map(({ iv }) => iv * 100);
+
+  const liquidIvs = liquidIndices.map(({ iv }) => iv * 100);
+
+  const iv30d = average(atmIvs.length >= 2 ? atmIvs : liquidIvs);
   const ivRankProxy = Math.min(Math.max(percentile(liquidIvs, 75), 0), 100);
 
   return {

@@ -48,8 +48,11 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
     ivRankSource: historicalIvRank === undefined ? 'CHAIN_PROXY' : 'HISTORICAL',
   };
 
-  const vrp = effectiveOptions.iv30d - effectiveOptions.hv30d;
-  const ivRankSignal = effectiveOptions.ivRank >= 50 ? 'SELL_ENVIRONMENT' : 'SKIP';
+  // Guard against hv30d=0 (its default when technicals are unavailable), which
+  // would make VRP appear spuriously positive (iv30d - 0 = iv30d).
+  const vrp = effectiveOptions.hv30d > 0 ? effectiveOptions.iv30d - effectiveOptions.hv30d : 0;
+  const ivThreshold = effectiveOptions.ivRankSource === 'HISTORICAL' ? 50 : 65;
+  const ivRankSignal = effectiveOptions.ivRank >= ivThreshold ? 'SELL_ENVIRONMENT' : 'SKIP';
 
   const earningsInWindow =
     fundamentals.earningsDte !== undefined && fundamentals.earningsDte <= ticker.maxDte;
@@ -64,6 +67,7 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
   const preScreenStrategy = selectStrategy(
     technicals.trend,
     effectiveOptions.ivRank,
+    effectiveOptions.ivRankSource ?? 'CHAIN_PROXY',
     earningsClear,
     atrPct,
     ticker.strategyPref,

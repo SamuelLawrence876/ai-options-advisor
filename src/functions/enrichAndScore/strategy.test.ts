@@ -104,40 +104,45 @@ describe('earningsProximity', () => {
 
 describe('selectStrategy', () => {
   it('returns SKIP when earnings are inside the expiry window', () => {
-    expect(selectStrategy('BULLISH', 70, false, 1.5, 'ANY', undefined)).toBe('SKIP');
+    expect(selectStrategy('BULLISH', 70, 'HISTORICAL', false, 1.5, 'ANY', undefined)).toBe('SKIP');
   });
 
-  it('returns SKIP when IV rank is below 50', () => {
-    expect(selectStrategy('BULLISH', 49, true, 1.5, 'ANY', undefined)).toBe('SKIP');
+  it('returns SKIP when IV rank is below 50 (historical source)', () => {
+    expect(selectStrategy('BULLISH', 49, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('SKIP');
   });
 
   it('returns COVERED_CALL when strategyPref is COVERED_CALL and shares are held', () => {
-    expect(selectStrategy('BULLISH', 60, true, 1.5, 'COVERED_CALL', 100)).toBe('COVERED_CALL');
+    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 100)).toBe('COVERED_CALL');
   });
 
   it('does not return COVERED_CALL when no shares are held', () => {
-    expect(selectStrategy('BULLISH', 60, true, 1.5, 'COVERED_CALL', 0)).not.toBe('COVERED_CALL');
+    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 0)).not.toBe('COVERED_CALL');
   });
 
   it('requires at least 100 shares for covered calls', () => {
-    expect(selectStrategy('NEUTRAL', 55, true, 2.5, 'ANY', 99)).toBe('CSP');
-    expect(selectStrategy('NEUTRAL', 55, true, 2.5, 'ANY', 100)).toBe('COVERED_CALL');
+    expect(selectStrategy('NEUTRAL', 55, 'HISTORICAL', true, 2.5, 'ANY', 99)).toBe('CSP');
+    expect(selectStrategy('NEUTRAL', 55, 'HISTORICAL', true, 2.5, 'ANY', 100)).toBe('COVERED_CALL');
   });
 
   it('returns PUT_CREDIT_SPREAD for BULLISH trend with sufficient IV rank', () => {
-    expect(selectStrategy('BULLISH', 60, true, 1.5, 'ANY', undefined)).toBe('PUT_CREDIT_SPREAD');
+    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('PUT_CREDIT_SPREAD');
   });
 
   it('returns CSP for neutral trend without shares', () => {
-    expect(selectStrategy('NEUTRAL', 65, true, 1.5, 'ANY', undefined)).toBe('CSP');
+    expect(selectStrategy('NEUTRAL', 65, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('CSP');
   });
 
-  it('returns CSP for BEARISH trend with sufficient IV rank', () => {
-    expect(selectStrategy('BEARISH', 60, true, 1.5, 'ANY', undefined)).toBe('CSP');
+  it('returns SKIP for BEARISH trend', () => {
+    expect(selectStrategy('BEARISH', 60, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('SKIP');
   });
 
   it('earnings block takes priority over IV rank block', () => {
-    expect(selectStrategy('BULLISH', 30, false, 1.5, 'ANY', undefined)).toBe('SKIP');
+    expect(selectStrategy('BULLISH', 30, 'HISTORICAL', false, 1.5, 'ANY', undefined)).toBe('SKIP');
+  });
+
+  it('requires IV rank >= 65 when source is CHAIN_PROXY', () => {
+    expect(selectStrategy('BULLISH', 60, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('SKIP');
+    expect(selectStrategy('BULLISH', 65, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('PUT_CREDIT_SPREAD');
   });
 });
 
