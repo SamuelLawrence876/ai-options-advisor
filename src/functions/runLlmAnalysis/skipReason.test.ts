@@ -148,7 +148,9 @@ describe('buildSkipReason', () => {
   it('rejection reason takes priority over neutral-zone IV signal', () => {
     const enriched = makeEnriched({
       ivRankSignal: 'SKIP',
-      candidateRejectionReasons: ['No mechanically valid candidate trade was found in the option chain.'],
+      candidateRejectionReasons: [
+        'No mechanically valid candidate trade was found in the option chain.',
+      ],
     });
 
     expect(buildSkipReason(enriched)).toContain('No mechanically valid');

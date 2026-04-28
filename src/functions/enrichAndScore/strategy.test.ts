@@ -154,28 +154,42 @@ describe('selectStrategy', () => {
   });
 
   it('returns COVERED_CALL when strategyPref is COVERED_CALL and shares are held', () => {
-    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 100)).toBe('COVERED_CALL');
+    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 100)).toBe(
+      'COVERED_CALL',
+    );
   });
 
   it('does not return COVERED_CALL when no shares are held', () => {
-    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 0)).not.toBe('COVERED_CALL');
+    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 0)).not.toBe(
+      'COVERED_CALL',
+    );
   });
 
   it('requires at least 100 shares to honour COVERED_CALL preference', () => {
-    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 99)).toBe('PUT_CREDIT_SPREAD');
-    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 100)).toBe('COVERED_CALL');
+    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 99)).toBe(
+      'PUT_CREDIT_SPREAD',
+    );
+    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 100)).toBe(
+      'COVERED_CALL',
+    );
   });
 
   it('returns PUT_CREDIT_SPREAD for BULLISH trend with sufficient IV rank', () => {
-    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('PUT_CREDIT_SPREAD');
+    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe(
+      'PUT_CREDIT_SPREAD',
+    );
   });
 
   it('returns IRON_CONDOR for neutral trend with high IV (no shares or directional pref)', () => {
-    expect(selectStrategy('NEUTRAL', 65, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('IRON_CONDOR');
+    expect(selectStrategy('NEUTRAL', 65, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe(
+      'IRON_CONDOR',
+    );
   });
 
   it('returns CALL_CREDIT_SPREAD for BEARISH trend with sufficient IV rank', () => {
-    expect(selectStrategy('BEARISH', 60, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('CALL_CREDIT_SPREAD');
+    expect(selectStrategy('BEARISH', 60, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe(
+      'CALL_CREDIT_SPREAD',
+    );
   });
 
   it('earnings block takes priority over IV rank block', () => {
@@ -184,7 +198,9 @@ describe('selectStrategy', () => {
 
   it('requires IV rank >= 60 when source is CHAIN_PROXY', () => {
     expect(selectStrategy('BULLISH', 59, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('SKIP');
-    expect(selectStrategy('BULLISH', 60, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('PUT_CREDIT_SPREAD');
+    expect(selectStrategy('BULLISH', 60, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe(
+      'PUT_CREDIT_SPREAD',
+    );
   });
 
   it('returns SKIP for BEARISH trend when IV rank is below threshold', () => {
@@ -192,11 +208,15 @@ describe('selectStrategy', () => {
   });
 
   it('returns CALL_DEBIT_SPREAD for BULLISH trend when IV rank is in buy zone', () => {
-    expect(selectStrategy('BULLISH', 30, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('CALL_DEBIT_SPREAD');
+    expect(selectStrategy('BULLISH', 30, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe(
+      'CALL_DEBIT_SPREAD',
+    );
   });
 
   it('returns PUT_DEBIT_SPREAD for BEARISH trend when IV rank is in buy zone', () => {
-    expect(selectStrategy('BEARISH', 25, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('PUT_DEBIT_SPREAD');
+    expect(selectStrategy('BEARISH', 25, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe(
+      'PUT_DEBIT_SPREAD',
+    );
   });
 
   it('returns SKIP for NEUTRAL trend when IV rank is in buy zone', () => {
@@ -217,11 +237,15 @@ describe('selectStrategy', () => {
   });
 
   it('returns IRON_CONDOR for NEUTRAL trend when IV rank is in the sell zone (HISTORICAL)', () => {
-    expect(selectStrategy('NEUTRAL', 55, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('IRON_CONDOR');
+    expect(selectStrategy('NEUTRAL', 55, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe(
+      'IRON_CONDOR',
+    );
   });
 
   it('returns IRON_CONDOR for NEUTRAL trend when IV rank is in the sell zone (CHAIN_PROXY)', () => {
-    expect(selectStrategy('NEUTRAL', 65, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('IRON_CONDOR');
+    expect(selectStrategy('NEUTRAL', 65, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe(
+      'IRON_CONDOR',
+    );
   });
 
   it('returns SKIP when trend is undefined due to insufficient price history', () => {
@@ -230,11 +254,15 @@ describe('selectStrategy', () => {
   });
 
   it('returns CALL_CREDIT_SPREAD for BEARISH trend with CHAIN_PROXY IV rank >= 60', () => {
-    expect(selectStrategy('BEARISH', 60, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('CALL_CREDIT_SPREAD');
+    expect(selectStrategy('BEARISH', 60, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe(
+      'CALL_CREDIT_SPREAD',
+    );
   });
 
   it('returns COVERED_CALL over CALL_CREDIT_SPREAD when strategyPref is COVERED_CALL, shares held, and trend is BEARISH', () => {
-    expect(selectStrategy('BEARISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 100)).toBe('COVERED_CALL');
+    expect(selectStrategy('BEARISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 100)).toBe(
+      'COVERED_CALL',
+    );
   });
 });
 
@@ -350,7 +378,7 @@ describe('selectCandidateStrike', () => {
       optionsWithCandidates([
         callCandidate(250, 2.5, 0.27),
         callCandidate(254, 0.5, 0.15), // width=4 → preferred
-        callCandidate(258, 0.3, 0.10), // width=8
+        callCandidate(258, 0.3, 0.1), // width=8
       ]),
       technicals,
       watchlistItem,
@@ -457,21 +485,18 @@ describe('selectCandidateStrike', () => {
     );
 
     expect(candidate?.strategy).toBe('IRON_CONDOR');
-    expect(candidate?.strike).toBe(236);       // short put
-    expect(candidate?.longStrike).toBe(232);   // long put
-    expect(candidate?.callStrike).toBe(244);   // short call
+    expect(candidate?.strike).toBe(236); // short put
+    expect(candidate?.longStrike).toBe(232); // long put
+    expect(candidate?.callStrike).toBe(244); // short call
     expect(candidate?.callLongStrike).toBe(248); // long call
-    expect(candidate?.maxLoss).toBe(100);      // (4 - 3.0) * 100
+    expect(candidate?.maxLoss).toBe(100); // (4 - 3.0) * 100
     expect(candidate?.bpr).toBe(100);
     expect(candidate?.robpAnnualised).toBeGreaterThan(0);
   });
 
   it('returns undefined for iron condor when no call candidates exist', () => {
     const candidate = selectCandidateStrike(
-      optionsWithCandidates([
-        putCandidate(236, 2.0, -0.27),
-        putCandidate(232, 0.5, -0.15),
-      ]),
+      optionsWithCandidates([putCandidate(236, 2.0, -0.27), putCandidate(232, 0.5, -0.15)]),
       technicals,
       watchlistItem,
       'IRON_CONDOR',
@@ -501,7 +526,9 @@ describe('selectCandidateStrike', () => {
     // delta=0.3 is outside [0.45, 0.65] → selectLongLeg returns undefined
     const candidate = selectCandidateStrike(
       optionsWithCandidates([callCandidate(240, 4.0, 0.3), callCandidate(245, 1.5, 0.28)]),
-      technicals, watchlistItem, 'CALL_DEBIT_SPREAD',
+      technicals,
+      watchlistItem,
+      'CALL_DEBIT_SPREAD',
     );
     expect(candidate).toBeUndefined();
   });
@@ -510,7 +537,9 @@ describe('selectCandidateStrike', () => {
     // delta=-0.2 is outside [-0.45, -0.65] → selectLongLeg returns undefined
     const candidate = selectCandidateStrike(
       optionsWithCandidates([putCandidate(240, 4.0, -0.2), putCandidate(235, 1.5, -0.28)]),
-      technicals, watchlistItem, 'PUT_DEBIT_SPREAD',
+      technicals,
+      watchlistItem,
+      'PUT_DEBIT_SPREAD',
     );
     expect(candidate).toBeUndefined();
   });
@@ -519,7 +548,9 @@ describe('selectCandidateStrike', () => {
     // delta=0.5 is outside [0.20, 0.35] → selectShortCall returns undefined
     const candidate = selectCandidateStrike(
       optionsWithCandidates([callCandidate(240, 4.0, 0.5)]),
-      technicals, watchlistItem, 'CALL_CREDIT_SPREAD',
+      technicals,
+      watchlistItem,
+      'CALL_CREDIT_SPREAD',
     );
     expect(candidate).toBeUndefined();
   });
@@ -528,7 +559,9 @@ describe('selectCandidateStrike', () => {
     // delta=-0.5 is outside [-0.20, -0.35] → selectShortPut returns undefined
     const candidate = selectCandidateStrike(
       optionsWithCandidates([putCandidate(240, 4.0, -0.5)]),
-      technicals, watchlistItem, 'PUT_CREDIT_SPREAD',
+      technicals,
+      watchlistItem,
+      'PUT_CREDIT_SPREAD',
     );
     expect(candidate).toBeUndefined();
   });
@@ -541,23 +574,33 @@ describe('selectCandidateStrike', () => {
         callCandidate(244, 2.0, 0.27),
         callCandidate(248, 0.5, 0.15),
       ]),
-      technicals, watchlistItem, 'IRON_CONDOR',
+      technicals,
+      watchlistItem,
+      'IRON_CONDOR',
     );
     expect(candidate).toBeUndefined();
   });
 
   it('returns undefined when strategy is SKIP', () => {
-    expect(selectCandidateStrike(
-      optionsWithCandidates([putCandidate(240, 2.5)]),
-      technicals, watchlistItem, 'SKIP',
-    )).toBeUndefined();
+    expect(
+      selectCandidateStrike(
+        optionsWithCandidates([putCandidate(240, 2.5)]),
+        technicals,
+        watchlistItem,
+        'SKIP',
+      ),
+    ).toBeUndefined();
   });
 
   it('returns undefined when strategy is WATCH', () => {
-    expect(selectCandidateStrike(
-      optionsWithCandidates([putCandidate(240, 2.5)]),
-      technicals, watchlistItem, 'WATCH',
-    )).toBeUndefined();
+    expect(
+      selectCandidateStrike(
+        optionsWithCandidates([putCandidate(240, 2.5)]),
+        technicals,
+        watchlistItem,
+        'WATCH',
+      ),
+    ).toBeUndefined();
   });
 });
 
@@ -630,7 +673,7 @@ describe('selectCandidateStrike sort comparators', () => {
         callCandidate(250, 2.5, 0.26),
         callCandidate(252, 2.0, 0.28),
         callCandidate(254, 0.5, 0.15), // width=4 from 250, qualifies
-        callCandidate(260, 0.3, 0.10), // width=10 from 250
+        callCandidate(260, 0.3, 0.1), // width=10 from 250
       ]),
       technicals,
       watchlistItem,
@@ -658,10 +701,7 @@ describe('selectCandidateStrike sort comparators', () => {
 
   it('covered call selects call closest to delta 0.3 when multiple qualify', () => {
     const candidate = selectCandidateStrike(
-      optionsWithCandidates([
-        callCandidate(258, 3.0, 0.27),
-        callCandidate(260, 2.4, 0.32),
-      ]),
+      optionsWithCandidates([callCandidate(258, 3.0, 0.27), callCandidate(260, 2.4, 0.32)]),
       technicals,
       { ...watchlistItem, sharesHeld: 100 },
       'COVERED_CALL',
@@ -726,9 +766,9 @@ describe('candidateRejectionReasons', () => {
       'CSP',
     );
 
-    expect(
-      candidateRejectionReasons(candidate, watchlistItem, true, false),
-    ).toContain("Earnings fall within this trade's expiry window.");
+    expect(candidateRejectionReasons(candidate, watchlistItem, true, false)).toContain(
+      "Earnings fall within this trade's expiry window.",
+    );
   });
 
   it('does not reject when earnings fall after the selected expiry', () => {
@@ -740,9 +780,9 @@ describe('candidateRejectionReasons', () => {
     );
 
     // earningsInWindow=false means earnings are after the trade expires — no rejection
-    expect(
-      candidateRejectionReasons(candidate, watchlistItem, false, false),
-    ).not.toContain("Earnings fall within this trade's expiry window.");
+    expect(candidateRejectionReasons(candidate, watchlistItem, false, false)).not.toContain(
+      "Earnings fall within this trade's expiry window.",
+    );
   });
 
   it('rejects covered calls with ex-dividend risk inside the expiry window', () => {

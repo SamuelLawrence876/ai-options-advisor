@@ -1,4 +1,9 @@
-import { classifyTrend, computeHistoricalVolatility, computeMovingAverage, computeAtr } from './technicalIndicators';
+import {
+  classifyTrend,
+  computeHistoricalVolatility,
+  computeMovingAverage,
+  computeAtr,
+} from './technicalIndicators';
 
 describe('computeMovingAverage', () => {
   it('returns the correct average for exactly period elements', () => {
@@ -59,7 +64,9 @@ describe('classifyTrend', () => {
 describe('computeAtr', () => {
   it('returns 0 for fewer than 2 bars', () => {
     expect(computeAtr([])).toBe(0);
-    expect(computeAtr([{ date: '2026-01-01', open: 100, high: 105, low: 95, close: 100, volume: 1000 }])).toBe(0);
+    expect(
+      computeAtr([{ date: '2026-01-01', open: 100, high: 105, low: 95, close: 100, volume: 1000 }]),
+    ).toBe(0);
   });
 
   it('computes a simple true range when close-to-close gaps are small', () => {

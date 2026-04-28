@@ -66,9 +66,9 @@ describe('MarketData client', () => {
   });
 
   it('throws on non-ok HTTP response and includes the body in the error message', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValue(
-      new Response('{"error":"internal server error"}', { status: 500 }),
-    );
+    jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response('{"error":"internal server error"}', { status: 500 }));
 
     await expect(fetchMarketDataOptions('MSFT', 'token', 30)).rejects.toThrow(
       'MarketData returned 500 for MSFT',

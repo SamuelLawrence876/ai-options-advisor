@@ -149,9 +149,7 @@ describe('computeMaxLoss', () => {
   });
 
   it('PUT_CREDIT_SPREAD falls back to default spread width of 5 when not provided', () => {
-    expect(
-      computeMaxLoss('PUT_CREDIT_SPREAD', { strike: 100, premiumCollected: 1 }),
-    ).toBe(400);
+    expect(computeMaxLoss('PUT_CREDIT_SPREAD', { strike: 100, premiumCollected: 1 })).toBe(400);
   });
 
   it('CALL_CREDIT_SPREAD does not return negative max loss for invalid credits', () => {
@@ -199,7 +197,9 @@ describe('computeBpr', () => {
   });
 
   it('IRON_CONDOR uses spread width minus premium', () => {
-    expect(computeMaxLoss('IRON_CONDOR', { spreadWidth: 4, strike: 236, premiumCollected: 3 })).toBe(100);
+    expect(
+      computeMaxLoss('IRON_CONDOR', { spreadWidth: 4, strike: 236, premiumCollected: 3 }),
+    ).toBe(100);
   });
 
   it('SKIP strategy returns 0 for max loss', () => {
@@ -257,7 +257,12 @@ describe('computeIvRank', () => {
   });
 
   it('returns undefined when history has fewer than 30 data points', () => {
-    expect(computeIvRank(30, Array.from({ length: 29 }, (_, i) => i + 10))).toBeUndefined();
+    expect(
+      computeIvRank(
+        30,
+        Array.from({ length: 29 }, (_, i) => i + 10),
+      ),
+    ).toBeUndefined();
   });
 
   it('returns undefined when history has 5 or fewer data points', () => {
@@ -265,10 +270,20 @@ describe('computeIvRank', () => {
   });
 
   it('returns 100 when all historical IVs are the same and current IV is at that level', () => {
-    expect(computeIvRank(30, Array.from({ length: 30 }, () => 30))).toBe(100);
+    expect(
+      computeIvRank(
+        30,
+        Array.from({ length: 30 }, () => 30),
+      ),
+    ).toBe(100);
   });
 
   it('returns 0 when all historical IVs are the same and current IV is below', () => {
-    expect(computeIvRank(20, Array.from({ length: 30 }, () => 30))).toBe(0);
+    expect(
+      computeIvRank(
+        20,
+        Array.from({ length: 30 }, () => 30),
+      ),
+    ).toBe(0);
   });
 });

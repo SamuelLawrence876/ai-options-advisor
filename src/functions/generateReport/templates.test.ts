@@ -1,4 +1,11 @@
-import { EnrichedTicker, MarketContext, PortfolioSynthesis, StrategyRecommendation, TickerAnalysis, TopPick } from '../../types';
+import {
+  EnrichedTicker,
+  MarketContext,
+  PortfolioSynthesis,
+  StrategyRecommendation,
+  TickerAnalysis,
+  TopPick,
+} from '../../types';
 import { buildReport } from './templates';
 
 const marketContext: MarketContext = {
@@ -24,11 +31,37 @@ const emptySynthesis: PortfolioSynthesis = {
 };
 
 function makePick(symbol: string, strategy: StrategyRecommendation, risks: string[] = []): TopPick {
-  return { symbol, strategy, tradeDescription: `Sell the ${symbol} spread.`, maxLoss: 380, buyingPower: 380, annualisedYield: 12.5, robpAnnualised: 87.3, confidence: 'HIGH', reasoning: 'Strong ROBP.', risks };
+  return {
+    symbol,
+    strategy,
+    tradeDescription: `Sell the ${symbol} spread.`,
+    maxLoss: 380,
+    buyingPower: 380,
+    annualisedYield: 12.5,
+    robpAnnualised: 87.3,
+    confidence: 'HIGH',
+    reasoning: 'Strong ROBP.',
+    risks,
+  };
 }
 
-function makeAnalysis(symbol: string, recommendation: StrategyRecommendation, flags: string[] = []): TickerAnalysis {
-  return { symbol, recommendation, confidence: 'HIGH', reasoning: 'Test rationale.', risks: [], flags, annualisedYield: 12.5, maxLoss: 380, buyingPowerRequired: 380, robpAnnualised: 87.3 };
+function makeAnalysis(
+  symbol: string,
+  recommendation: StrategyRecommendation,
+  flags: string[] = [],
+): TickerAnalysis {
+  return {
+    symbol,
+    recommendation,
+    confidence: 'HIGH',
+    reasoning: 'Test rationale.',
+    risks: [],
+    flags,
+    annualisedYield: 12.5,
+    maxLoss: 380,
+    buyingPowerRequired: 380,
+    robpAnnualised: 87.3,
+  };
 }
 
 describe('buildReport', () => {
@@ -74,10 +107,20 @@ describe('buildReport', () => {
   });
 
   it('renders null metric values as em-dash in watchlist', () => {
-    const analyses: TickerAnalysis[] = [{
-      symbol: 'XOM', recommendation: 'SKIP', confidence: 'LOW', reasoning: 'Low IV.',
-      risks: [], flags: [], annualisedYield: undefined, maxLoss: undefined, buyingPowerRequired: undefined, robpAnnualised: undefined,
-    }];
+    const analyses: TickerAnalysis[] = [
+      {
+        symbol: 'XOM',
+        recommendation: 'SKIP',
+        confidence: 'LOW',
+        reasoning: 'Low IV.',
+        risks: [],
+        flags: [],
+        annualisedYield: undefined,
+        maxLoss: undefined,
+        buyingPowerRequired: undefined,
+        robpAnnualised: undefined,
+      },
+    ];
 
     const report = buildReport(emptySynthesis, analyses, [], '2026-04-25', marketContext);
 
@@ -92,7 +135,17 @@ describe('buildReport', () => {
       macroNote: 'VIX elevated — size carefully.',
     };
     const analyses = [makeAnalysis('MSFT', 'SKIP')];
-    const enriched = [{ ticker: { symbol: 'AAPL' }, rawFundamentals: { earningsDte: 7, earningsDate: '2026-05-02', symbol: 'AAPL', fetchedAt: '' } }] as EnrichedTicker[];
+    const enriched = [
+      {
+        ticker: { symbol: 'AAPL' },
+        rawFundamentals: {
+          earningsDte: 7,
+          earningsDate: '2026-05-02',
+          symbol: 'AAPL',
+          fetchedAt: '',
+        },
+      },
+    ] as EnrichedTicker[];
 
     const report = buildReport(synthesis, analyses, enriched, '2026-04-25', marketContext);
 

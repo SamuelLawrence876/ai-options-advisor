@@ -34,12 +34,21 @@ function selectLongLeg(candidates: StrikeCandidate[]): StrikeCandidate | undefin
     .sort((a, b) => Math.abs(Math.abs(a.delta) - 0.5) - Math.abs(Math.abs(b.delta) - 0.5))[0];
 }
 
-function buildCallDebitSpread(callCandidates: StrikeCandidate[], price: number): CandidateTrade | undefined {
+function buildCallDebitSpread(
+  callCandidates: StrikeCandidate[],
+  price: number,
+): CandidateTrade | undefined {
   const longCall = selectLongLeg(callCandidates);
   if (!longCall) return undefined;
 
   const shortCall = callCandidates
-    .filter(c => c.expiry === longCall.expiry && c.strike > longCall.strike && c.delta >= 0.2 && c.delta <= 0.35)
+    .filter(
+      c =>
+        c.expiry === longCall.expiry &&
+        c.strike > longCall.strike &&
+        c.delta >= 0.2 &&
+        c.delta <= 0.35,
+    )
     .sort((a, b) => Math.abs(a.delta - 0.3) - Math.abs(b.delta - 0.3))[0];
   if (!shortCall) return undefined;
 
@@ -51,7 +60,10 @@ function buildCallDebitSpread(callCandidates: StrikeCandidate[], price: number):
   // Require at least 1:1 reward:risk (max profit >= net debit paid)
   if (width - netDebit < netDebit) return undefined;
 
-  const maxLoss = computeMaxLoss('CALL_DEBIT_SPREAD', { strike: longCall.strike, premiumCollected: netDebit });
+  const maxLoss = computeMaxLoss('CALL_DEBIT_SPREAD', {
+    strike: longCall.strike,
+    premiumCollected: netDebit,
+  });
   const bpr = computeBpr('CALL_DEBIT_SPREAD', 0, maxLoss);
   const robpAnnualised = computeRobp(width - netDebit, bpr, longCall.dte);
   const annualisedYield = computeAnnualisedYield(width - netDebit, width, longCall.dte);
@@ -73,16 +85,27 @@ function buildCallDebitSpread(callCandidates: StrikeCandidate[], price: number):
     bpr,
     annualisedYield,
     robpAnnualised,
-    liquidityOk: Math.min(longCall.openInterest, shortCall.openInterest) > computeMinOi(price) && spreadPct(bid, ask) < 10,
+    liquidityOk:
+      Math.min(longCall.openInterest, shortCall.openInterest) > computeMinOi(price) &&
+      spreadPct(bid, ask) < 10,
   };
 }
 
-function buildPutDebitSpread(putCandidates: StrikeCandidate[], price: number): CandidateTrade | undefined {
+function buildPutDebitSpread(
+  putCandidates: StrikeCandidate[],
+  price: number,
+): CandidateTrade | undefined {
   const longPut = selectLongLeg(putCandidates);
   if (!longPut) return undefined;
 
   const shortPut = putCandidates
-    .filter(c => c.expiry === longPut.expiry && c.strike < longPut.strike && Math.abs(c.delta) >= 0.2 && Math.abs(c.delta) <= 0.35)
+    .filter(
+      c =>
+        c.expiry === longPut.expiry &&
+        c.strike < longPut.strike &&
+        Math.abs(c.delta) >= 0.2 &&
+        Math.abs(c.delta) <= 0.35,
+    )
     .sort((a, b) => Math.abs(Math.abs(a.delta) - 0.3) - Math.abs(Math.abs(b.delta) - 0.3))[0];
   if (!shortPut) return undefined;
 
@@ -94,7 +117,10 @@ function buildPutDebitSpread(putCandidates: StrikeCandidate[], price: number): C
   // Require at least 1:1 reward:risk (max profit >= net debit paid)
   if (width - netDebit < netDebit) return undefined;
 
-  const maxLoss = computeMaxLoss('PUT_DEBIT_SPREAD', { strike: longPut.strike, premiumCollected: netDebit });
+  const maxLoss = computeMaxLoss('PUT_DEBIT_SPREAD', {
+    strike: longPut.strike,
+    premiumCollected: netDebit,
+  });
   const bpr = computeBpr('PUT_DEBIT_SPREAD', 0, maxLoss);
   const robpAnnualised = computeRobp(width - netDebit, bpr, longPut.dte);
   const annualisedYield = computeAnnualisedYield(width - netDebit, width, longPut.dte);
@@ -116,13 +142,15 @@ function buildPutDebitSpread(putCandidates: StrikeCandidate[], price: number): C
     bpr,
     annualisedYield,
     robpAnnualised,
-    liquidityOk: Math.min(longPut.openInterest, shortPut.openInterest) > computeMinOi(price) && spreadPct(bid, ask) < 10,
+    liquidityOk:
+      Math.min(longPut.openInterest, shortPut.openInterest) > computeMinOi(price) &&
+      spreadPct(bid, ask) < 10,
   };
 }
 
 function selectShortCall(candidates: StrikeCandidate[]): StrikeCandidate | undefined {
   return candidates
-    .filter(c => c.delta >= 0.20 && c.delta <= 0.35)
+    .filter(c => c.delta >= 0.2 && c.delta <= 0.35)
     .sort((a, b) => Math.abs(a.delta - 0.27) - Math.abs(b.delta - 0.27))[0];
 }
 
@@ -191,13 +219,14 @@ function buildCallCreditSpread(
     annualisedYield,
     robpAnnualised,
     liquidityOk:
-      Math.min(shortCall.openInterest, longCall.openInterest) > computeMinOi(technicals.price) && spreadPct(bid, ask) < 10,
+      Math.min(shortCall.openInterest, longCall.openInterest) > computeMinOi(technicals.price) &&
+      spreadPct(bid, ask) < 10,
   };
 }
 
 function selectShortPut(candidates: StrikeCandidate[]): StrikeCandidate | undefined {
   return candidates
-    .filter(c => Math.abs(c.delta) >= 0.20 && Math.abs(c.delta) <= 0.35)
+    .filter(c => Math.abs(c.delta) >= 0.2 && Math.abs(c.delta) <= 0.35)
     .sort((a, b) => Math.abs(Math.abs(a.delta) - 0.27) - Math.abs(Math.abs(b.delta) - 0.27))[0];
 }
 
@@ -266,7 +295,8 @@ function buildPutCreditSpread(
     annualisedYield,
     robpAnnualised,
     liquidityOk:
-      Math.min(shortPut.openInterest, longPut.openInterest) > computeMinOi(technicals.price) && spreadPct(bid, ask) < 10,
+      Math.min(shortPut.openInterest, longPut.openInterest) > computeMinOi(technicals.price) &&
+      spreadPct(bid, ask) < 10,
   };
 }
 
@@ -303,7 +333,12 @@ function buildIronCondor(
   if (bid <= 0 || ask <= 0) return undefined;
 
   const sp = spreadPct(bid, ask);
-  const oi = Math.min(shortPut.openInterest, longPut.openInterest, shortCall.openInterest, longCall.openInterest);
+  const oi = Math.min(
+    shortPut.openInterest,
+    longPut.openInterest,
+    shortCall.openInterest,
+    longCall.openInterest,
+  );
 
   const maxLoss = computeMaxLoss('IRON_CONDOR', {
     spreadWidth: maxWidth,

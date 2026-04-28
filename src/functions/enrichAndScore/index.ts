@@ -86,8 +86,7 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
   // Evaluate earnings and ex-div against the actual selected expiry, not the max window
   const tradeDte = candidateTrade?.dte ?? ticker.maxDte;
   const earningsInWindow = computeEarningsInWindow(fundamentals.earningsDte, tradeDte);
-  const exDivInWindow =
-    fundamentals.exDivDte !== undefined && fundamentals.exDivDte <= tradeDte;
+  const exDivInWindow = fundamentals.exDivDte !== undefined && fundamentals.exDivDte <= tradeDte;
   const proximity = earningsProximity(fundamentals.earningsDte, candidateTrade?.dte);
 
   const rejectionReasons =

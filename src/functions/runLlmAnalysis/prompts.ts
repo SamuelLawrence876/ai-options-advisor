@@ -1,7 +1,7 @@
 import { MacroEvent, MarketContext, TickerAnalysis } from '../../types';
 
-function formatMacroEvents(events: MacroEvent[]): string {
-  if (events.length === 0) return 'None scheduled';
+function formatMacroEvents(events: MacroEvent[] | undefined): string {
+  if (!events || events.length === 0) return 'None scheduled';
   return events.map(e => `${e.event} ${e.date} (${e.daysAway}d) [${e.impact}]`).join(' · ');
 }
 

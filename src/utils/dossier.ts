@@ -54,8 +54,10 @@ export function formatDossier(
     `Market Trend:   ${marketContext.marketTrend}`,
     `Sector Trend:   N/A`,
     `Upcoming Events (21d): ${
-      marketContext.macroEvents.length > 0
-        ? marketContext.macroEvents.map(e => `${e.event} ${e.date} (${e.daysAway}d) [${e.impact}]`).join(' · ')
+      (marketContext.macroEvents ?? []).length > 0
+        ? (marketContext.macroEvents ?? [])
+            .map(e => `${e.event} ${e.date} (${e.daysAway}d) [${e.impact}]`)
+            .join(' · ')
         : 'None scheduled'
     }`,
     '',

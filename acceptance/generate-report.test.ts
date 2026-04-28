@@ -74,13 +74,15 @@ const fixtureSynthesis: PortfolioSynthesis = {
     {
       symbol: 'MSFT',
       strategy: 'IRON_CONDOR',
-      tradeDescription: 'Sell the MSFT 380/375 put spread and 420/425 call spread, 28 DTE, collect $1.50',
+      tradeDescription:
+        'Sell the MSFT 380/375 put spread and 420/425 call spread, 28 DTE, collect $1.50',
       maxLoss: 350,
       buyingPower: 350,
       annualisedYield: 195.7,
       robpAnnualised: 195.7,
       confidence: 'MEDIUM',
-      reasoning: 'IV rank in neutral zone, trend neutral — iron condor captures range-bound premium.',
+      reasoning:
+        'IV rank in neutral zone, trend neutral — iron condor captures range-bound premium.',
       risks: ['Gap risk on earnings'],
     },
   ],

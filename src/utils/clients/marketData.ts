@@ -162,7 +162,7 @@ export async function fetchMarketDataOptions(
     .filter(({ iv, index }) => Number.isFinite(iv) && iv > 0 && bids[index] > 0 && asks[index] > 0);
 
   const atmIvs = liquidIndices
-    .filter(({ index }) => Math.abs(deltas[index]) >= 0.40 && Math.abs(deltas[index]) <= 0.60)
+    .filter(({ index }) => Math.abs(deltas[index]) >= 0.4 && Math.abs(deltas[index]) <= 0.6)
     .map(({ iv }) => iv * 100);
 
   const liquidIvs = liquidIndices.map(({ iv }) => iv * 100);

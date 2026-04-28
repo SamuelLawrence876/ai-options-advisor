@@ -290,10 +290,10 @@ Looks up the DynamoDB `iv-history` table for up to 52 weeks of daily `iv30d` sna
 
 This matters because the sell threshold differs:
 
-| Source | Sell threshold | Buy threshold |
-|--------|---------------|---------------|
-| `HISTORICAL` | 50 | 35 |
-| `CHAIN_PROXY` | 60 | 35 |
+| Source        | Sell threshold | Buy threshold |
+| ------------- | -------------- | ------------- |
+| `HISTORICAL`  | 50             | 35            |
+| `CHAIN_PROXY` | 60             | 35            |
 
 The chain-proxy threshold is higher (60 vs 50) because the single-snapshot approximation tends to overestimate rank relative to a true 52-week calculation.
 
@@ -347,22 +347,27 @@ else                → SKIP
 Filters `candidateStrikes` to the days-to-expiration window: `minDte ≤ dte ≤ maxDte` and within 15 days of `targetDte`. Then builds the trade for the selected strategy:
 
 **Target spread width (credit spreads and iron condor):**
+
 ```
 targetWidth = max(3, min(10, round(atr14)))
 ```
+
 The 14-day average true range is used as a proxy for a one-sigma daily move. A $4 average-true-range stock gets a 4-wide spread.
 
 **Short leg (credit spreads, cash-secured put, iron condor):**
+
 - Filters to `|delta|` in `[0.20, 0.35]`.
 - Sorts by closeness to delta 0.27 (roughly 27% probability of expiring in-the-money).
 - Picks the best fit.
 
 **Long leg (credit spreads, iron condor):**
+
 - Filters to same expiry, on the out-of-the-money side of the short leg.
 - Sorts by closeness to `targetWidth` distance from the short strike.
 - Must satisfy: `credit ≥ width × 0.33` — the long leg can consume at most 67% of the short premium. This enforces a minimum reward-to-risk ratio on the spread.
 
 **Long leg (debit spreads):**
+
 - Filters to `|delta|` in `[0.45, 0.65]` (near at-the-money).
 - Picks closest to delta 0.50.
 - Short leg: `|delta|` in `[0.20, 0.35]`, closest to 0.30.
@@ -374,13 +379,13 @@ The 14-day average true range is used as a proxy for a one-sigma daily move. A $
 
 For each candidate trade, the code computes:
 
-| Metric | Formula |
-|--------|---------|
-| `maxLoss` | Credit: `(width − premium) × 100`. Cash-secured put / covered call: `(strike − premium) × 100`. Debit: `netDebit × 100`. |
+| Metric                        | Formula                                                                                                                  |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `maxLoss`                     | Credit: `(width − premium) × 100`. Cash-secured put / covered call: `(strike − premium) × 100`. Debit: `netDebit × 100`. |
 | `bpr` (buying power required) | Credit/debit spreads and iron condor: equals `maxLoss`. Covered call: `price × 100`. Cash-secured put: equals `maxLoss`. |
-| `annualisedYield` | `premium / strike × (365 / dte) × 100` — yield on notional. |
-| `robpAnnualised` | `premium / bpr × (365 / dte) × 100` — return on buying power. **This is the primary ranking metric.** |
-| `premiumCoversAtr` | `premiumMid > atr14` — does premium collected exceed a typical daily move? |
+| `annualisedYield`             | `premium / strike × (365 / dte) × 100` — yield on notional.                                                              |
+| `robpAnnualised`              | `premium / bpr × (365 / dte) × 100` — return on buying power. **This is the primary ranking metric.**                    |
+| `premiumCoversAtr`            | `premiumMid > atr14` — does premium collected exceed a typical daily move?                                               |
 
 #### 3h. Liquidity check
 
@@ -469,19 +474,19 @@ The report is written to `reports/{YYYY-MM-DD}.md` in S3.
 
 ### Signal quick-reference
 
-| Signal | Threshold | Effect |
-|--------|-----------|--------|
-| Implied volatility rank (historical) | ≥ 50 | SELL_ENVIRONMENT |
-| Implied volatility rank (chain-proxy) | ≥ 60 | SELL_ENVIRONMENT |
-| Implied volatility rank (either) | ≤ 35 | BUY_ENVIRONMENT |
-| Implied volatility rank between thresholds | — | Neutral zone → IRON_CONDOR (NEUTRAL trend) or SKIP |
-| Earnings inside window | `earningsDte ≤ maxDte` | Hard SKIP regardless of implied volatility |
-| Near 52-week high | `distanceFromHigh52wPct < 5%` | Flag only, not a SKIP |
-| Premium covers average true range | `premiumMid > atr14` | Flag only |
-| Liquidity (open interest) | `> max(50, round(9_500_000 / (price × 100)))` | Fails liquidityOk |
-| Liquidity (spread) | `< 10%` | Fails liquidityOk |
-| Min credit (spread) | `≥ width × 0.33` | Long-leg selector skips candidates below this |
-| Min reward:risk (debit) | `width − netDebit ≥ netDebit` | Spread rejected if not 1:1 |
+| Signal                                     | Threshold                                     | Effect                                             |
+| ------------------------------------------ | --------------------------------------------- | -------------------------------------------------- |
+| Implied volatility rank (historical)       | ≥ 50                                          | SELL_ENVIRONMENT                                   |
+| Implied volatility rank (chain-proxy)      | ≥ 60                                          | SELL_ENVIRONMENT                                   |
+| Implied volatility rank (either)           | ≤ 35                                          | BUY_ENVIRONMENT                                    |
+| Implied volatility rank between thresholds | —                                             | Neutral zone → IRON_CONDOR (NEUTRAL trend) or SKIP |
+| Earnings inside window                     | `earningsDte ≤ maxDte`                        | Hard SKIP regardless of implied volatility         |
+| Near 52-week high                          | `distanceFromHigh52wPct < 5%`                 | Flag only, not a SKIP                              |
+| Premium covers average true range          | `premiumMid > atr14`                          | Flag only                                          |
+| Liquidity (open interest)                  | `> max(50, round(9_500_000 / (price × 100)))` | Fails liquidityOk                                  |
+| Liquidity (spread)                         | `< 10%`                                       | Fails liquidityOk                                  |
+| Min credit (spread)                        | `≥ width × 0.33`                              | Long-leg selector skips candidates below this      |
+| Min reward:risk (debit)                    | `width − netDebit ≥ netDebit`                 | Spread rejected if not 1:1                         |
 
 ---
 
