@@ -461,7 +461,7 @@ describe('selectCandidateStrike', () => {
   });
 
   it('returns undefined for call credit spread when no short call exists in delta range', () => {
-    // delta=0.5 is outside [0.25, 0.3] → selectShortCall returns undefined
+    // delta=0.5 is outside [0.20, 0.35] → selectShortCall returns undefined
     const candidate = selectCandidateStrike(
       optionsWithCandidates([callCandidate(240, 4.0, 0.5)]),
       technicals, watchlistItem, 'CALL_CREDIT_SPREAD',
@@ -470,7 +470,7 @@ describe('selectCandidateStrike', () => {
   });
 
   it('returns undefined for put credit spread when no short put exists in delta range', () => {
-    // delta=-0.5 is outside [-0.25, -0.3] → selectShortPut returns undefined
+    // delta=-0.5 is outside [-0.20, -0.35] → selectShortPut returns undefined
     const candidate = selectCandidateStrike(
       optionsWithCandidates([putCandidate(240, 4.0, -0.5)]),
       technicals, watchlistItem, 'PUT_CREDIT_SPREAD',
@@ -479,7 +479,7 @@ describe('selectCandidateStrike', () => {
   });
 
   it('returns undefined for iron condor when no qualifying short put exists', () => {
-    // delta=-0.5 is outside [-0.25, -0.3] → selectShortPut returns undefined
+    // delta=-0.5 is outside [-0.20, -0.35] → selectShortPut returns undefined
     const candidate = selectCandidateStrike(
       optionsWithCandidates([
         putCandidate(236, 2.0, -0.5),

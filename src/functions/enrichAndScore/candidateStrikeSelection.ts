@@ -22,13 +22,19 @@ function computeTargetWidth(atr14: number): number {
   return Math.max(3, Math.min(10, Math.round(atr14)));
 }
 
+// Scale OI minimum to maintain roughly constant notional liquidity across price points.
+// Baseline: 500 contracts at $190 (AAPL) ≈ $9.5M notional.
+function computeMinOi(price: number): number {
+  return Math.max(50, Math.round(9_500_000 / (price * 100)));
+}
+
 function selectLongLeg(candidates: StrikeCandidate[]): StrikeCandidate | undefined {
   return candidates
     .filter(c => Math.abs(c.delta) >= 0.45 && Math.abs(c.delta) <= 0.65)
     .sort((a, b) => Math.abs(Math.abs(a.delta) - 0.5) - Math.abs(Math.abs(b.delta) - 0.5))[0];
 }
 
-function buildCallDebitSpread(callCandidates: StrikeCandidate[]): CandidateTrade | undefined {
+function buildCallDebitSpread(callCandidates: StrikeCandidate[], price: number): CandidateTrade | undefined {
   const longCall = selectLongLeg(callCandidates);
   if (!longCall) return undefined;
 
@@ -67,11 +73,11 @@ function buildCallDebitSpread(callCandidates: StrikeCandidate[]): CandidateTrade
     bpr,
     annualisedYield,
     robpAnnualised,
-    liquidityOk: Math.min(longCall.openInterest, shortCall.openInterest) > 500 && spreadPct(bid, ask) < 10,
+    liquidityOk: Math.min(longCall.openInterest, shortCall.openInterest) > computeMinOi(price) && spreadPct(bid, ask) < 10,
   };
 }
 
-function buildPutDebitSpread(putCandidates: StrikeCandidate[]): CandidateTrade | undefined {
+function buildPutDebitSpread(putCandidates: StrikeCandidate[], price: number): CandidateTrade | undefined {
   const longPut = selectLongLeg(putCandidates);
   if (!longPut) return undefined;
 
@@ -110,13 +116,13 @@ function buildPutDebitSpread(putCandidates: StrikeCandidate[]): CandidateTrade |
     bpr,
     annualisedYield,
     robpAnnualised,
-    liquidityOk: Math.min(longPut.openInterest, shortPut.openInterest) > 500 && spreadPct(bid, ask) < 10,
+    liquidityOk: Math.min(longPut.openInterest, shortPut.openInterest) > computeMinOi(price) && spreadPct(bid, ask) < 10,
   };
 }
 
 function selectShortCall(candidates: StrikeCandidate[]): StrikeCandidate | undefined {
   return candidates
-    .filter(c => c.delta >= 0.25 && c.delta <= 0.3)
+    .filter(c => c.delta >= 0.20 && c.delta <= 0.35)
     .sort((a, b) => Math.abs(a.delta - 0.27) - Math.abs(b.delta - 0.27))[0];
 }
 
@@ -185,13 +191,13 @@ function buildCallCreditSpread(
     annualisedYield,
     robpAnnualised,
     liquidityOk:
-      Math.min(shortCall.openInterest, longCall.openInterest) > 500 && spreadPct(bid, ask) < 10,
+      Math.min(shortCall.openInterest, longCall.openInterest) > computeMinOi(technicals.price) && spreadPct(bid, ask) < 10,
   };
 }
 
 function selectShortPut(candidates: StrikeCandidate[]): StrikeCandidate | undefined {
   return candidates
-    .filter(c => Math.abs(c.delta) >= 0.25 && Math.abs(c.delta) <= 0.3)
+    .filter(c => Math.abs(c.delta) >= 0.20 && Math.abs(c.delta) <= 0.35)
     .sort((a, b) => Math.abs(Math.abs(a.delta) - 0.27) - Math.abs(Math.abs(b.delta) - 0.27))[0];
 }
 
@@ -260,7 +266,7 @@ function buildPutCreditSpread(
     annualisedYield,
     robpAnnualised,
     liquidityOk:
-      Math.min(shortPut.openInterest, longPut.openInterest) > 500 && spreadPct(bid, ask) < 10,
+      Math.min(shortPut.openInterest, longPut.openInterest) > computeMinOi(technicals.price) && spreadPct(bid, ask) < 10,
   };
 }
 
@@ -327,7 +333,7 @@ function buildIronCondor(
     bpr,
     annualisedYield,
     robpAnnualised,
-    liquidityOk: oi > 500 && sp < 10,
+    liquidityOk: oi > computeMinOi(technicals.price) && sp < 10,
   };
 }
 
@@ -359,8 +365,6 @@ export function selectCandidateStrike(
       Math.abs(c.dte - targetDte) < 15,
   );
 
-  let strike: StrikeCandidate | undefined;
-
   if (strategy === 'PUT_CREDIT_SPREAD') {
     return buildPutCreditSpread(putCandidates, technicals);
   }
@@ -370,16 +374,18 @@ export function selectCandidateStrike(
   }
 
   if (strategy === 'CALL_DEBIT_SPREAD') {
-    return buildCallDebitSpread(callCandidates);
+    return buildCallDebitSpread(callCandidates, technicals.price);
   }
 
   if (strategy === 'PUT_DEBIT_SPREAD') {
-    return buildPutDebitSpread(putCandidates);
+    return buildPutDebitSpread(putCandidates, technicals.price);
   }
 
   if (strategy === 'IRON_CONDOR') {
     return buildIronCondor(putCandidates, callCandidates, technicals);
   }
+
+  let strike: StrikeCandidate | undefined;
 
   if (strategy === 'COVERED_CALL') {
     strike = callCandidates
@@ -393,7 +399,8 @@ export function selectCandidateStrike(
 
   const premium = strike.mid;
   const strikeSpreadPct = spreadPct(strike.bid, strike.ask);
-  const liquidityOk = strike.openInterest > 500 && strikeSpreadPct < 10;
+  const minOi = computeMinOi(technicals.price);
+  const liquidityOk = strike.openInterest > minOi && strikeSpreadPct < 10;
 
   const maxLoss = computeMaxLoss(strategy, {
     costBasis: ticker.costBasis,
