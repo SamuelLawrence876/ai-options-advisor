@@ -40,7 +40,7 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
   ]);
 
   const earningsDate = earningsCalendar[symbol];
-  const earningsDte = earningsDate ? daysBetween(earningsDate) : undefined;
+  const earningsDte = earningsDate ? daysBetween(earningsDate, apiDate) : undefined;
 
   const [exDivDate, annualDividendYield, meanPriceTarget, ratings] = await Promise.all([
     fetchFinnhubUpcomingDividend(symbol, apiDate, dateOffsetDays(apiDate, 90), finnhubKey).catch(
@@ -55,7 +55,7 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
     })),
   ]);
 
-  const exDivDte = exDivDate ? daysBetween(exDivDate) : undefined;
+  const exDivDte = exDivDate ? daysBetween(exDivDate, apiDate) : undefined;
   const analystConsensus = deriveAnalystConsensus(
     ratings.buyCount,
     ratings.holdCount,

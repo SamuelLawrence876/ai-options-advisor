@@ -1,7 +1,7 @@
-export function daysBetween(dateStr: string): number {
+export function daysBetween(dateStr: string, referenceDate?: string): number {
   const target = new Date(dateStr);
-  const now = new Date();
-  return Math.round((target.getTime() - now.getTime()) / 86400000);
+  const ref = referenceDate ? new Date(referenceDate) : new Date();
+  return Math.round((target.getTime() - ref.getTime()) / 86400000);
 }
 
 export function dateOffsetDays(base: string, days: number): string {

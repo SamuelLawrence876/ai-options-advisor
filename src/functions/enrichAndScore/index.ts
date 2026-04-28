@@ -12,7 +12,7 @@ import { getJson, putJson } from '../../utils/aws/s3Json';
 import { computeIvRank } from '../../utils/impliedVolatility';
 import { candidateRejectionReasons } from './candidateRejectionReasons';
 import { selectCandidateStrike } from './candidateStrikeSelection';
-import { earningsProximity } from './earningsProximity';
+import { computeEarningsInWindow, earningsProximity } from './earningsProximity';
 import { selectStrategy } from './strategySelection';
 
 interface EnrichAndScoreEvent {
@@ -85,8 +85,7 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
 
   // Evaluate earnings and ex-div against the actual selected expiry, not the max window
   const tradeDte = candidateTrade?.dte ?? ticker.maxDte;
-  const earningsInWindow =
-    fundamentals.earningsDte !== undefined && fundamentals.earningsDte <= tradeDte;
+  const earningsInWindow = computeEarningsInWindow(fundamentals.earningsDte, tradeDte);
   const exDivInWindow =
     fundamentals.exDivDte !== undefined && fundamentals.exDivDte <= tradeDte;
   const proximity = earningsProximity(fundamentals.earningsDte, candidateTrade?.dte);

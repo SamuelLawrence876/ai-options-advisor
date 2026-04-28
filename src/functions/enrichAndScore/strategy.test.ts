@@ -1,7 +1,7 @@
 import { CandidateStrike, OptionsData, TechnicalsData, WatchlistItem } from '../../types';
 import { candidateRejectionReasons } from './candidateRejectionReasons';
 import { selectCandidateStrike } from './candidateStrikeSelection';
-import { earningsProximity } from './earningsProximity';
+import { computeEarningsInWindow, earningsProximity } from './earningsProximity';
 import { selectStrategy } from './strategySelection';
 
 const watchlistItem: WatchlistItem = {
@@ -79,6 +79,32 @@ const optionsWithCandidates = (candidates: CandidateStrike[]): OptionsData => ({
   volSurface: [],
   candidateStrikes: candidates,
   fetchedAt: '2026-04-25T00:00:00.000Z',
+});
+
+describe('computeEarningsInWindow', () => {
+  it('returns false when earningsDte is undefined', () => {
+    expect(computeEarningsInWindow(undefined, 30)).toBe(false);
+  });
+
+  it('returns false when earningsDte is negative — past earnings must not block a trade', () => {
+    // Regression: handler previously used earningsDte <= tradeDte with no > 0 guard,
+    // so a negative earningsDte (-5 <= 30) incorrectly triggered an earnings rejection.
+    expect(computeEarningsInWindow(-5, 30)).toBe(false);
+    expect(computeEarningsInWindow(-1, 30)).toBe(false);
+  });
+
+  it('returns false when earningsDte is zero', () => {
+    expect(computeEarningsInWindow(0, 30)).toBe(false);
+  });
+
+  it('returns true when earnings fall on or before the trade expiry', () => {
+    expect(computeEarningsInWindow(25, 30)).toBe(true);
+    expect(computeEarningsInWindow(30, 30)).toBe(true);
+  });
+
+  it('returns false when earnings fall after the trade expiry', () => {
+    expect(computeEarningsInWindow(31, 30)).toBe(false);
+  });
 });
 
 describe('earningsProximity', () => {

@@ -23,6 +23,23 @@ describe('daysBetween', () => {
   it('returns 0 for the current date', () => {
     expect(daysBetween('2026-01-15')).toBe(0);
   });
+
+  it('returns days relative to referenceDate, not wall-clock time', () => {
+    // Wall clock is 2026-01-15. referenceDate is 2026-01-10, so target is 5 days ahead of ref.
+    expect(daysBetween('2026-01-15', '2026-01-10')).toBe(5);
+  });
+
+  it('returns a negative number when target is before referenceDate', () => {
+    expect(daysBetween('2026-01-08', '2026-01-10')).toBe(-2);
+  });
+
+  it('is not affected by wall-clock time when referenceDate is supplied', () => {
+    // Supplying a past referenceDate gives a completely different result than now-relative.
+    // Without referenceDate: 2026-01-20 is 5 days from now (2026-01-15).
+    // With referenceDate=2026-01-01: 2026-01-20 is 19 days from the reference.
+    expect(daysBetween('2026-01-20', '2026-01-01')).toBe(19);
+    expect(daysBetween('2026-01-20')).toBe(5);
+  });
 });
 
 describe('dateOffsetDays', () => {

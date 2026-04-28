@@ -29,7 +29,7 @@ export const handler = async (
 
   const date = event.date ?? new Date().toISOString().slice(0, 10);
   const apiDate = resolveApiDate(date);
-  const from60d = dateOffsetDays(apiDate, -60);
+  const from100d = dateOffsetDays(apiDate, -100);
 
   info('fetch-market-context started', { date });
 
@@ -42,7 +42,7 @@ export const handler = async (
   const { spyBars, qqqBars, vixPrice, spyPrice, qqqPrice } = await fetchMarketBars(
     finnhubKey,
     polygonKey,
-    from60d,
+    from100d,
     apiDate,
   );
 
