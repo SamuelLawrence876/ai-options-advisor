@@ -45,6 +45,7 @@ export class OptionsAnalysisStack extends Stack {
       bucket: storage.bucket,
       watchlistTable: tables.watchlistTable,
       finnhubApiKey: secrets.finnhubApiKey,
+      polygonApiKey: secrets.polygonApiKey,
     });
 
     const fetchTechnicals = new FetchTechnicals(this, 'FetchTechnicals', {

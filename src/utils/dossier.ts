@@ -42,11 +42,22 @@ export function formatDossier(
     `Short Interest: ${f.shortInterestPct?.toFixed(1) ?? 'N/A'}%  (${f.daysToCover?.toFixed(1) ?? '?'}d to cover)`,
     `Unusual Activity: ${f.unusualActivityFlag ? `YES — ${f.unusualActivityDirection ?? 'unknown'}-biased` : 'None'}`,
     '',
+    'RECENT NEWS (7d)',
+    '────────────────',
+    ...(f.recentNews && f.recentNews.length > 0
+      ? f.recentNews.map(n => `• ${n.date} | ${n.source} — ${n.headline}`)
+      : ['None retrieved']),
+    '',
     'MARKET REGIME',
     '─────────────',
     `VIX:            ${marketContext.vix.toFixed(2)}  [${marketContext.vixRegime}]`,
     `Market Trend:   ${marketContext.marketTrend}`,
     `Sector Trend:   N/A`,
+    `Upcoming Events (21d): ${
+      marketContext.macroEvents.length > 0
+        ? marketContext.macroEvents.map(e => `${e.event} ${e.date} (${e.daysAway}d) [${e.impact}]`).join(' · ')
+        : 'None scheduled'
+    }`,
     '',
   ];
 

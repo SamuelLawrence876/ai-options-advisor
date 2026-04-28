@@ -1,6 +1,14 @@
 export type VixRegime = 'LOW' | 'NORMAL' | 'ELEVATED' | 'EXTREME';
 export type MarketTrend = 'BULL' | 'NEUTRAL' | 'BEAR';
 export type TrendClassification = 'BULLISH' | 'NEUTRAL' | 'BEARISH';
+export type MacroImpact = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export interface MacroEvent {
+  event: string;
+  date: string;
+  daysAway: number;
+  impact: MacroImpact;
+}
 
 export interface MarketContext {
   date: string;
@@ -11,6 +19,7 @@ export interface MarketContext {
   qqqPrice: number;
   qqqTrend: MarketTrend;
   marketTrend: MarketTrend;
+  macroEvents: MacroEvent[];
   fetchedAt: string;
 }
 

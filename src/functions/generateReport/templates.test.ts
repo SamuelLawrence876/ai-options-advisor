@@ -10,6 +10,7 @@ const marketContext: MarketContext = {
   qqqPrice: 400,
   qqqTrend: 'NEUTRAL',
   marketTrend: 'NEUTRAL',
+  macroEvents: [],
   fetchedAt: '2026-04-25T00:00:00.000Z',
 };
 

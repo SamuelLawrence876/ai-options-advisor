@@ -13,6 +13,7 @@ export interface FetchFundamentalsProps {
   bucket: IBucket;
   watchlistTable: ITable;
   finnhubApiKey: ISecret;
+  polygonApiKey: ISecret;
 }
 
 export class FetchFundamentals extends Construct {
@@ -21,12 +22,12 @@ export class FetchFundamentals extends Construct {
   constructor(scope: Construct, id: string, props: FetchFundamentalsProps) {
     super(scope, id);
 
-    const { stage, bucket, watchlistTable, finnhubApiKey } = props;
+    const { stage, bucket, watchlistTable, finnhubApiKey, polygonApiKey } = props;
 
     this.fn = new NodejsFunction(this, 'Function', {
       functionName: addStagePrefix(stage, 'fetch-fundamentals'),
       description:
-        'Fetches earnings dates, dividends, analyst ratings, and price targets per ticker from Finnhub and stores raw JSON to S3',
+        'Fetches earnings dates, dividends, analyst ratings, price targets, and recent news per ticker from Finnhub and Polygon',
       runtime: Runtime.NODEJS_24_X,
       architecture: Architecture.ARM_64,
       entry: path.join(__dirname, '../../../../src/functions/fetchFundamentals/index.ts'),
@@ -39,6 +40,7 @@ export class FetchFundamentals extends Construct {
         BUCKET_NAME: bucket.bucketName,
         WATCHLIST_TABLE: watchlistTable.tableName,
         FINNHUB_SECRET_ARN: finnhubApiKey.secretName,
+        POLYGON_SECRET_ARN: polygonApiKey.secretName,
       },
       bundling: { minify: true, sourceMap: true },
     });
@@ -46,5 +48,6 @@ export class FetchFundamentals extends Construct {
     bucket.grantReadWrite(this.fn);
     watchlistTable.grantReadData(this.fn);
     finnhubApiKey.grantRead(this.fn);
+    polygonApiKey.grantRead(this.fn);
   }
 }

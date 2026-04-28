@@ -1,4 +1,4 @@
-import { MarketContext, MarketTrend, WatchlistItem } from '../../types';
+import { MacroEvent, MarketContext, MarketTrend, WatchlistItem } from '../../types';
 import { getActiveWatchlist } from '../../utils/aws/watchlistRepository';
 import { error, info } from '../../utils/logger';
 import { classifyMarketTrend, classifyVixRegime } from '../../utils/marketRegime';
@@ -6,8 +6,9 @@ import { computeMovingAverage } from '../../utils/technicalIndicators';
 import { putJson } from '../../utils/aws/s3Json';
 import { getSecretValue } from '../../utils/aws/secrets';
 import { fetchFinnhubEarningsCalendar } from '../../utils/clients/finnhubEarnings';
-import { dateOffsetDays, resolveApiDate } from '../../utils/dates';
+import { daysBetween, dateOffsetDays, resolveApiDate } from '../../utils/dates';
 import { fetchMarketBars } from './marketBars';
+import macroCalendarRaw from '../../data/macro-calendar.json';
 
 interface FetchMarketContextEvent {
   date?: string;
@@ -79,6 +80,11 @@ export const handler = async (
     return {} as Record<string, string>;
   });
 
+  const macroEvents: MacroEvent[] = (macroCalendarRaw as Omit<MacroEvent, 'daysAway'>[])
+    .map(e => ({ ...e, daysAway: daysBetween(e.date, apiDate) }))
+    .filter(e => e.daysAway >= 0 && e.daysAway <= 21)
+    .sort((a, b) => a.daysAway - b.daysAway);
+
   const marketContext: MarketContext = {
     date,
     vix: vixPrice,
@@ -88,6 +94,7 @@ export const handler = async (
     qqqPrice,
     qqqTrend,
     marketTrend,
+    macroEvents,
     fetchedAt: new Date().toISOString(),
   };
 

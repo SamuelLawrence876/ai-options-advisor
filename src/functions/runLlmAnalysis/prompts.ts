@@ -1,4 +1,9 @@
-import { MarketContext, TickerAnalysis } from '../../types';
+import { MacroEvent, MarketContext, TickerAnalysis } from '../../types';
+
+function formatMacroEvents(events: MacroEvent[]): string {
+  if (events.length === 0) return 'None scheduled';
+  return events.map(e => `${e.event} ${e.date} (${e.daysAway}d) [${e.impact}]`).join(' · ');
+}
 
 export const SYSTEM_PROMPT = `You are a professional options trader and analyst specialising in options strategies: covered calls, cash-secured puts (CSPs), put credit spreads, call credit spreads, call debit spreads, put debit spreads, and iron condors.
 
@@ -62,6 +67,7 @@ VIX: ${marketContext.vix.toFixed(2)} [${marketContext.vixRegime}]
 Market Trend: ${marketContext.marketTrend}
 SPY: $${marketContext.spyPrice.toFixed(2)} (${marketContext.spyTrend})
 QQQ: $${marketContext.qqqPrice.toFixed(2)} (${marketContext.qqqTrend})
+Upcoming Macro Events (21d): ${formatMacroEvents(marketContext.macroEvents)}
 
 PER-TICKER RESULTS
 ──────────────────

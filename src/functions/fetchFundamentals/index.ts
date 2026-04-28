@@ -10,6 +10,7 @@ import {
   fetchFinnhubDividendYield,
   fetchFinnhubUpcomingDividend,
 } from '../../utils/clients/finnhubDividends';
+import { fetchPolygonNews } from '../../utils/clients/polygon';
 import { daysBetween, dateOffsetDays, resolveApiDate } from '../../utils/dates';
 import { deriveAnalystConsensus } from './analystConsensus';
 
@@ -22,6 +23,7 @@ interface FetchFundamentalsEvent {
 export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFundamentalsEvent> => {
   const bucketName = process.env.BUCKET_NAME!;
   const finnhubArn = process.env.FINNHUB_SECRET_ARN!;
+  const polygonArn = process.env.POLYGON_SECRET_ARN!;
 
   const { ticker, date } = event;
   const symbol = ticker.symbol;
@@ -29,8 +31,9 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
 
   info('fetch-fundamentals started', { symbol, date });
 
-  const [finnhubKey, earningsCalendar] = await Promise.all([
+  const [finnhubKey, polygonKey, earningsCalendar] = await Promise.all([
     getSecretValue(finnhubArn),
+    getSecretValue(polygonArn),
     getJson<Record<string, string>>(bucketName, `raw-data/${apiDate}/earnings-calendar.json`).catch(
       err => {
         error('Failed to read earnings calendar from S3', err as Error);
@@ -42,7 +45,7 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
   const earningsDate = earningsCalendar[symbol];
   const earningsDte = earningsDate ? daysBetween(earningsDate, apiDate) : undefined;
 
-  const [exDivDate, annualDividendYield, meanPriceTarget, ratings] = await Promise.all([
+  const [exDivDate, annualDividendYield, meanPriceTarget, ratings, recentNews] = await Promise.all([
     fetchFinnhubUpcomingDividend(symbol, apiDate, dateOffsetDays(apiDate, 90), finnhubKey).catch(
       () => undefined,
     ),
@@ -53,6 +56,7 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
       holdCount: 0,
       sellCount: 0,
     })),
+    fetchPolygonNews(symbol, dateOffsetDays(apiDate, -7), polygonKey).catch(() => []),
   ]);
 
   const exDivDte = exDivDate ? daysBetween(exDivDate, apiDate) : undefined;
@@ -72,6 +76,7 @@ export const handler = async (event: FetchFundamentalsEvent): Promise<FetchFunda
     meanPriceTarget,
     analystConsensus,
     unusualActivityFlag: false,
+    recentNews: recentNews.length > 0 ? recentNews : undefined,
     fetchedAt: new Date().toISOString(),
   };
 

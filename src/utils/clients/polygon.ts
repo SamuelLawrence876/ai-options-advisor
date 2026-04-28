@@ -1,4 +1,4 @@
-import { OhlcvBar } from '../../types';
+import { NewsHeadline, OhlcvBar } from '../../types';
 
 interface PolygonAggResult {
   t: number;
@@ -13,6 +13,32 @@ interface PolygonAggsResponse {
   results?: PolygonAggResult[];
   status: string;
   resultsCount?: number;
+}
+
+interface PolygonNewsResult {
+  title: string;
+  published_utc: string;
+  publisher: { name: string };
+}
+
+interface PolygonNewsResponse {
+  results?: PolygonNewsResult[];
+}
+
+export async function fetchPolygonNews(
+  symbol: string,
+  fromDate: string,
+  apiKey: string,
+): Promise<NewsHeadline[]> {
+  const url = `https://api.polygon.io/v2/reference/news?ticker=${encodeURIComponent(symbol)}&published_utc.gte=${fromDate}&order=desc&limit=8&apiKey=${apiKey}`;
+  const response = await fetch(url);
+  if (!response.ok) return [];
+  const data = (await response.json()) as PolygonNewsResponse;
+  return (data.results ?? []).map(r => ({
+    headline: r.title,
+    source: r.publisher.name,
+    date: r.published_utc.slice(0, 10),
+  }));
 }
 
 function toPolygonTicker(symbol: string): string {
