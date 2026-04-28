@@ -1,4 +1,4 @@
-import { MacroEvent, MarketContext, MarketTrend, WatchlistItem } from '../../types';
+import { MarketContext, MarketTrend, WatchlistItem } from '../../types';
 import { getActiveWatchlist } from '../../utils/aws/watchlistRepository';
 import { error, info } from '../../utils/logger';
 import { classifyMarketTrend, classifyVixRegime } from '../../utils/marketRegime';
@@ -6,9 +6,9 @@ import { computeMovingAverage } from '../../utils/technicalIndicators';
 import { putJson } from '../../utils/aws/s3Json';
 import { getSecretValue } from '../../utils/aws/secrets';
 import { fetchFinnhubEarningsCalendar } from '../../utils/clients/finnhubEarnings';
-import { daysBetween, dateOffsetDays, resolveApiDate } from '../../utils/dates';
+import { fetchFinnhubEconomicCalendar } from '../../utils/clients/finnhubEconomicCalendar';
+import { dateOffsetDays, resolveApiDate } from '../../utils/dates';
 import { fetchMarketBars } from './marketBars';
-import macroCalendarRaw from '../../data/macro-calendar.json';
 
 interface FetchMarketContextEvent {
   date?: string;
@@ -80,10 +80,15 @@ export const handler = async (
     return {} as Record<string, string>;
   });
 
-  const macroEvents: MacroEvent[] = (macroCalendarRaw as Omit<MacroEvent, 'daysAway'>[])
-    .map(e => ({ ...e, daysAway: daysBetween(e.date, apiDate) }))
-    .filter(e => e.daysAway >= 0 && e.daysAway <= 21)
-    .sort((a, b) => a.daysAway - b.daysAway);
+  const macroEvents = await fetchFinnhubEconomicCalendar(
+    apiDate,
+    dateOffsetDays(apiDate, 21),
+    apiDate,
+    finnhubKey,
+  ).catch(err => {
+    error('Failed to fetch economic calendar', err as Error);
+    return [];
+  });
 
   const marketContext: MarketContext = {
     date,
