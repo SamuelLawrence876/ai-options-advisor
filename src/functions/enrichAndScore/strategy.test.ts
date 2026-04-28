@@ -100,6 +100,22 @@ describe('earningsProximity', () => {
     expect(earningsProximity(21)).toBe('CLEAR');
     expect(earningsProximity(60)).toBe('CLEAR');
   });
+
+  it('returns CLEAR when earnings fall after the trade expiry', () => {
+    // earnings at day 30, trade expires at day 25 — earnings do not overlap
+    expect(earningsProximity(30, 25)).toBe('CLEAR');
+    // earnings at day 10 (DANGER zone), but trade expires at day 8 — still safe
+    expect(earningsProximity(10, 8)).toBe('CLEAR');
+  });
+
+  it('flags DANGER when earnings fall before the trade expiry', () => {
+    // earnings at day 10, trade expires at day 25 — earnings overlap
+    expect(earningsProximity(10, 25)).toBe('DANGER');
+  });
+
+  it('flags CAUTION when earnings fall before the trade expiry in caution zone', () => {
+    expect(earningsProximity(18, 30)).toBe('CAUTION');
+  });
 });
 
 describe('selectStrategy', () => {
@@ -119,17 +135,17 @@ describe('selectStrategy', () => {
     expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 0)).not.toBe('COVERED_CALL');
   });
 
-  it('requires at least 100 shares for covered calls', () => {
-    expect(selectStrategy('NEUTRAL', 55, 'HISTORICAL', true, 2.5, 'ANY', 99)).toBe('CSP');
-    expect(selectStrategy('NEUTRAL', 55, 'HISTORICAL', true, 2.5, 'ANY', 100)).toBe('COVERED_CALL');
+  it('requires at least 100 shares to honour COVERED_CALL preference', () => {
+    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 99)).toBe('PUT_CREDIT_SPREAD');
+    expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'COVERED_CALL', 100)).toBe('COVERED_CALL');
   });
 
   it('returns PUT_CREDIT_SPREAD for BULLISH trend with sufficient IV rank', () => {
     expect(selectStrategy('BULLISH', 60, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('PUT_CREDIT_SPREAD');
   });
 
-  it('returns CSP for neutral trend without shares', () => {
-    expect(selectStrategy('NEUTRAL', 65, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('CSP');
+  it('returns IRON_CONDOR for neutral trend with high IV (no shares or directional pref)', () => {
+    expect(selectStrategy('NEUTRAL', 65, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('IRON_CONDOR');
   });
 
   it('returns CALL_CREDIT_SPREAD for BEARISH trend with sufficient IV rank', () => {
@@ -166,12 +182,25 @@ describe('selectStrategy', () => {
     expect(selectStrategy('BEARISH', 42, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('SKIP');
   });
 
-  it('returns IRON_CONDOR for NEUTRAL trend when IV rank is in the neutral zone (HISTORICAL)', () => {
-    expect(selectStrategy('NEUTRAL', 42, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('IRON_CONDOR');
+  it('returns SKIP for NEUTRAL trend when IV rank is in the neutral zone (HISTORICAL)', () => {
+    expect(selectStrategy('NEUTRAL', 42, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('SKIP');
   });
 
-  it('returns IRON_CONDOR for NEUTRAL trend when IV rank is in the neutral zone (CHAIN_PROXY)', () => {
-    expect(selectStrategy('NEUTRAL', 50, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('IRON_CONDOR');
+  it('returns SKIP for NEUTRAL trend when IV rank is in the neutral zone (CHAIN_PROXY)', () => {
+    expect(selectStrategy('NEUTRAL', 50, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('SKIP');
+  });
+
+  it('returns IRON_CONDOR for NEUTRAL trend when IV rank is in the sell zone (HISTORICAL)', () => {
+    expect(selectStrategy('NEUTRAL', 55, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('IRON_CONDOR');
+  });
+
+  it('returns IRON_CONDOR for NEUTRAL trend when IV rank is in the sell zone (CHAIN_PROXY)', () => {
+    expect(selectStrategy('NEUTRAL', 65, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('IRON_CONDOR');
+  });
+
+  it('returns SKIP when trend is undefined due to insufficient price history', () => {
+    expect(selectStrategy(undefined, 65, 'HISTORICAL', true, 1.5, 'ANY', undefined)).toBe('SKIP');
+    expect(selectStrategy(undefined, 20, 'CHAIN_PROXY', true, 1.5, 'ANY', undefined)).toBe('SKIP');
   });
 
   it('returns CALL_CREDIT_SPREAD for BEARISH trend with CHAIN_PROXY IV rank >= 60', () => {
@@ -628,7 +657,7 @@ describe('selectCandidateStrike sort comparators', () => {
 
 describe('candidateRejectionReasons', () => {
   it('rejects missing candidates', () => {
-    expect(candidateRejectionReasons(undefined, watchlistItem, false)).toEqual([
+    expect(candidateRejectionReasons(undefined, watchlistItem, false, false)).toEqual([
       'No mechanically valid candidate trade was found in the option chain.',
     ]);
   });
@@ -645,7 +674,7 @@ describe('candidateRejectionReasons', () => {
       'PUT_CREDIT_SPREAD',
     );
 
-    expect(candidateRejectionReasons(candidate, watchlistItem, false)[0]).toContain(
+    expect(candidateRejectionReasons(candidate, watchlistItem, false, false)[0]).toContain(
       'Liquidity below threshold: open interest 100',
     );
   });
@@ -659,8 +688,35 @@ describe('candidateRejectionReasons', () => {
     );
 
     expect(
-      candidateRejectionReasons(candidate, { ...watchlistItem, targetYieldPct: 10 }, false),
+      candidateRejectionReasons(candidate, { ...watchlistItem, targetYieldPct: 10 }, false, false),
     ).toContain('Annualised yield 5.5% is below target 10.0%.');
+  });
+
+  it('rejects trades when earnings fall within the selected expiry window', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidate(putCandidate(220, 1.2)),
+      technicals,
+      watchlistItem,
+      'CSP',
+    );
+
+    expect(
+      candidateRejectionReasons(candidate, watchlistItem, true, false),
+    ).toContain("Earnings fall within this trade's expiry window.");
+  });
+
+  it('does not reject when earnings fall after the selected expiry', () => {
+    const candidate = selectCandidateStrike(
+      optionsWithCandidate(putCandidate(220, 1.2)),
+      technicals,
+      watchlistItem,
+      'CSP',
+    );
+
+    // earningsInWindow=false means earnings are after the trade expires — no rejection
+    expect(
+      candidateRejectionReasons(candidate, watchlistItem, false, false),
+    ).not.toContain("Earnings fall within this trade's expiry window.");
   });
 
   it('rejects covered calls with ex-dividend risk inside the expiry window', () => {
@@ -672,7 +728,7 @@ describe('candidateRejectionReasons', () => {
     );
 
     expect(
-      candidateRejectionReasons(candidate, { ...watchlistItem, sharesHeld: 100 }, true),
+      candidateRejectionReasons(candidate, { ...watchlistItem, sharesHeld: 100 }, false, true),
     ).toContain('Ex-dividend date falls inside the expiry window for this covered call.');
   });
 });

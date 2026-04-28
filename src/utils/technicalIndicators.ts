@@ -1,7 +1,7 @@
 import { OhlcvBar, TrendClassification } from '../types';
 
-export function computeMovingAverage(closes: number[], period: number): number {
-  if (closes.length < period) return closes[closes.length - 1] ?? 0;
+export function computeMovingAverage(closes: number[], period: number): number | undefined {
+  if (closes.length < period) return undefined;
   const slice = closes.slice(-period);
   return slice.reduce((sum, v) => sum + v, 0) / period;
 }
@@ -39,7 +39,12 @@ export function computeHistoricalVolatility(closes: number[], period = 30): numb
   return Math.sqrt(variance) * Math.sqrt(252) * 100;
 }
 
-export function classifyTrend(price: number, ma20: number, ma50: number): TrendClassification {
+export function classifyTrend(
+  price: number,
+  ma20: number | undefined,
+  ma50: number | undefined,
+): TrendClassification | undefined {
+  if (ma20 === undefined || ma50 === undefined) return undefined;
   if (price > ma50 && ma20 > ma50) return 'BULLISH';
   if (price < ma50 && ma20 < ma50) return 'BEARISH';
   return 'NEUTRAL';

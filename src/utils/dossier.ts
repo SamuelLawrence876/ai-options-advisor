@@ -27,7 +27,7 @@ export function formatDossier(
     '',
     'TREND & TECHNICALS',
     '──────────────────',
-    `Trend:          ${t.trend}`,
+    `Trend:          ${t.trend ?? 'UNKNOWN'}`,
     `Price vs 20d MA: ${t.priceVsMa20Pct >= 0 ? 'above' : 'below'} by ${Math.abs(t.priceVsMa20Pct).toFixed(1)}%`,
     `Price vs 50d MA: ${t.priceVsMa50Pct >= 0 ? 'above' : 'below'} by ${Math.abs(t.priceVsMa50Pct).toFixed(1)}%`,
     `52w High:       $${t.high52w.toFixed(2)}  (${t.distanceFromHigh52wPct.toFixed(1)}% away)`,

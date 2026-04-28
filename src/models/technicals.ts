@@ -6,9 +6,9 @@ export interface TechnicalsData extends SymbolSnapshot {
   high52w: number;
   low52w: number;
   distanceFromHigh52wPct: number;
-  ma20: number;
-  ma50: number;
-  trend: TrendClassification;
+  ma20: number | undefined;
+  ma50: number | undefined;
+  trend: TrendClassification | undefined;
   atr14: number;
   atrPct: number;
   hv30d: number;

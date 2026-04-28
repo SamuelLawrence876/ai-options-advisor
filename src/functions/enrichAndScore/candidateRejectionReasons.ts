@@ -7,6 +7,7 @@ function positiveFinite(value: number): boolean {
 export function candidateRejectionReasons(
   candidate: CandidateTrade | undefined,
   ticker: WatchlistItem,
+  earningsInWindow: boolean,
   exDivInWindow: boolean,
 ): string[] {
   if (!candidate) return ['No mechanically valid candidate trade was found in the option chain.'];
@@ -36,6 +37,10 @@ export function candidateRejectionReasons(
     reasons.push(
       `Annualised yield ${candidate.annualisedYield.toFixed(1)}% is below target ${ticker.targetYieldPct.toFixed(1)}%.`,
     );
+  }
+
+  if (earningsInWindow) {
+    reasons.push("Earnings fall within this trade's expiry window.");
   }
 
   if (candidate.strategy === 'COVERED_CALL' && exDivInWindow) {

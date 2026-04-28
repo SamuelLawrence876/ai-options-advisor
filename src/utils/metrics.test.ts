@@ -23,12 +23,12 @@ describe('computeMovingAverage', () => {
     expect(computeMovingAverage([10, 20, 30, 40, 50], 3)).toBeCloseTo(40);
   });
 
-  it('returns the last value when array is shorter than period', () => {
-    expect(computeMovingAverage([10, 20], 5)).toBe(20);
+  it('returns undefined when array is shorter than period', () => {
+    expect(computeMovingAverage([10, 20], 5)).toBeUndefined();
   });
 
-  it('returns 0 for an empty array', () => {
-    expect(computeMovingAverage([], 5)).toBe(0);
+  it('returns undefined for an empty array', () => {
+    expect(computeMovingAverage([], 5)).toBeUndefined();
   });
 });
 
@@ -87,6 +87,14 @@ describe('classifyTrend', () => {
 
   it('returns NEUTRAL in mixed conditions', () => {
     expect(classifyTrend(105, 95, 100)).toBe('NEUTRAL');
+  });
+
+  it('returns undefined when ma20 is undefined (insufficient history)', () => {
+    expect(classifyTrend(110, undefined, 100)).toBeUndefined();
+  });
+
+  it('returns undefined when ma50 is undefined (insufficient history)', () => {
+    expect(classifyTrend(110, 108, undefined)).toBeUndefined();
   });
 });
 
@@ -235,25 +243,32 @@ describe('computeAnnualisedYield', () => {
   });
 });
 
+const iv30History = Array.from({ length: 30 }, (_, i) => 10 + i * (40 / 29)); // 30 evenly spaced values from 10 to 50
+
 describe('computeIvRank', () => {
   it('computes rank against historical IV range', () => {
-    expect(computeIvRank(30, [10, 20, 30, 40, 50])).toBe(50);
+    // With values spanning [10, 50], IV of 30 is exactly at the midpoint → rank 50
+    expect(computeIvRank(30, iv30History)).toBe(50);
   });
 
   it('clamps values outside historical range', () => {
-    expect(computeIvRank(60, [10, 20, 30, 40, 50])).toBe(100);
-    expect(computeIvRank(5, [10, 20, 30, 40, 50])).toBe(0);
+    expect(computeIvRank(60, iv30History)).toBe(100);
+    expect(computeIvRank(5, iv30History)).toBe(0);
   });
 
-  it('returns undefined when history is insufficient', () => {
-    expect(computeIvRank(30, [10, 20, 30, 40])).toBeUndefined();
+  it('returns undefined when history has fewer than 30 data points', () => {
+    expect(computeIvRank(30, Array.from({ length: 29 }, (_, i) => i + 10))).toBeUndefined();
+  });
+
+  it('returns undefined when history has 5 or fewer data points', () => {
+    expect(computeIvRank(30, [10, 20, 30, 40, 50])).toBeUndefined();
   });
 
   it('returns 100 when all historical IVs are the same and current IV is at that level', () => {
-    expect(computeIvRank(30, [30, 30, 30, 30, 30])).toBe(100);
+    expect(computeIvRank(30, Array.from({ length: 30 }, () => 30))).toBe(100);
   });
 
   it('returns 0 when all historical IVs are the same and current IV is below', () => {
-    expect(computeIvRank(20, [30, 30, 30, 30, 30])).toBe(0);
+    expect(computeIvRank(20, Array.from({ length: 30 }, () => 30))).toBe(0);
   });
 });

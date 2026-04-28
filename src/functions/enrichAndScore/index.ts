@@ -44,7 +44,6 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
     ...options,
     hv30d: technicals.hv30d ?? options.hv30d,
     ivRank: historicalIvRank ?? options.ivRank,
-    ivPercentile: historicalIvRank ?? options.ivPercentile,
     ivRankSource: historicalIvRank === undefined ? 'CHAIN_PROXY' : 'HISTORICAL',
   };
 
@@ -60,12 +59,9 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
         ? 'BUY_ENVIRONMENT'
         : 'SKIP';
 
-  const earningsInWindow =
-    fundamentals.earningsDte !== undefined && fundamentals.earningsDte <= ticker.maxDte;
-  const exDivInWindow =
-    fundamentals.exDivDte !== undefined && fundamentals.exDivDte <= ticker.maxDte;
-  const earningsClear = !earningsInWindow;
-  const proximity = earningsProximity(fundamentals.earningsDte);
+  // Early gate: only skip if earnings are guaranteed to overlap every possible expiry
+  const earningsClear =
+    fundamentals.earningsDte === undefined || fundamentals.earningsDte > ticker.minDte;
 
   const near52wHigh = technicals.distanceFromHigh52wPct < 5;
   const atrPct = technicals.atrPct;
@@ -86,10 +82,19 @@ export const handler = async (event: EnrichAndScoreEvent): Promise<EnrichedTicke
     ticker,
     preScreenStrategy,
   );
+
+  // Evaluate earnings and ex-div against the actual selected expiry, not the max window
+  const tradeDte = candidateTrade?.dte ?? ticker.maxDte;
+  const earningsInWindow =
+    fundamentals.earningsDte !== undefined && fundamentals.earningsDte <= tradeDte;
+  const exDivInWindow =
+    fundamentals.exDivDte !== undefined && fundamentals.exDivDte <= tradeDte;
+  const proximity = earningsProximity(fundamentals.earningsDte, candidateTrade?.dte);
+
   const rejectionReasons =
     preScreenStrategy === 'SKIP'
       ? []
-      : candidateRejectionReasons(candidateTrade, ticker, exDivInWindow);
+      : candidateRejectionReasons(candidateTrade, ticker, earningsInWindow, exDivInWindow);
   const strategy = rejectionReasons.length > 0 ? 'SKIP' : preScreenStrategy;
   const premiumCoversAtr = candidateTrade ? candidateTrade.premiumMid > technicals.atr14 : false;
 

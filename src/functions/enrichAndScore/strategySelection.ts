@@ -1,7 +1,7 @@
-import { StrategyRecommendation } from '../../types';
+import { StrategyRecommendation, TrendClassification } from '../../types';
 
 export function selectStrategy(
-  trend: string,
+  trend: TrendClassification | undefined,
   ivRank: number,
   ivRankSource: string,
   earningsClear: boolean,
@@ -10,6 +10,7 @@ export function selectStrategy(
   sharesHeld: number | undefined,
 ): StrategyRecommendation {
   if (!earningsClear) return 'SKIP';
+  if (trend === undefined) return 'SKIP';
 
   const sellThreshold = ivRankSource === 'HISTORICAL' ? 50 : 60;
   const buyThreshold = 35;
@@ -19,7 +20,7 @@ export function selectStrategy(
     if (strategyPref === 'COVERED_CALL' && canSellCoveredCall) return 'COVERED_CALL';
     if (trend === 'BULLISH') return 'PUT_CREDIT_SPREAD';
     if (trend === 'BEARISH') return 'CALL_CREDIT_SPREAD';
-    return canSellCoveredCall ? 'COVERED_CALL' : 'CSP';
+    return 'IRON_CONDOR';
   }
 
   if (ivRank <= buyThreshold) {
@@ -28,7 +29,6 @@ export function selectStrategy(
     return 'SKIP';
   }
 
-  // Neutral zone (between buy and sell thresholds): iron condor for neutral trend only
-  if (trend === 'NEUTRAL') return 'IRON_CONDOR';
+  // Neutral IV zone: not enough premium to sell, no clear direction to buy
   return 'SKIP';
 }

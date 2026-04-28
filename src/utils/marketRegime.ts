@@ -7,7 +7,12 @@ export function classifyVixRegime(vix: number): VixRegime {
   return 'EXTREME';
 }
 
-export function classifyMarketTrend(price: number, ma20: number, ma50: number): MarketTrend {
+export function classifyMarketTrend(
+  price: number,
+  ma20: number | undefined,
+  ma50: number | undefined,
+): MarketTrend {
+  if (ma20 === undefined || ma50 === undefined) return 'NEUTRAL';
   if (price > ma50 && ma20 > ma50) return 'BULL';
   if (price < ma50 && ma20 < ma50) return 'BEAR';
   return 'NEUTRAL';

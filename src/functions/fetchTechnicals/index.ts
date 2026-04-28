@@ -59,8 +59,8 @@ export const handler = async (event: FetchTechnicalsEvent): Promise<FetchTechnic
   const low52w = Math.min(...closes);
   const distanceFromHigh52wPct = high52w > 0 ? ((high52w - price) / high52w) * 100 : 0;
 
-  const priceVsMa20Pct = ma20 > 0 ? ((price - ma20) / ma20) * 100 : 0;
-  const priceVsMa50Pct = ma50 > 0 ? ((price - ma50) / ma50) * 100 : 0;
+  const priceVsMa20Pct = ma20 !== undefined && ma20 > 0 ? ((price - ma20) / ma20) * 100 : 0;
+  const priceVsMa50Pct = ma50 !== undefined && ma50 > 0 ? ((price - ma50) / ma50) * 100 : 0;
 
   const technicals: TechnicalsData = {
     symbol,
