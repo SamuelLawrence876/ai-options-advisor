@@ -121,6 +121,48 @@ process.stdout.write(String(items.length));
 NODE
 )"
 
+EXISTING_SYMBOLS="$(
+  aws dynamodb scan \
+    --table-name "${TABLE}" \
+    --region "${REGION}" \
+    --projection-expression "symbol" \
+    --output json \
+    | node -e "
+const chunks = [];
+process.stdin.on('data', d => chunks.push(d));
+process.stdin.on('end', () => {
+  const data = JSON.parse(Buffer.concat(chunks).toString());
+  const symbols = (data.Items || []).map(i => i.symbol?.S).filter(Boolean);
+  process.stdout.write(JSON.stringify(symbols));
+});
+"
+)"
+
+DELETE_COUNT="$(
+  node - "${WATCHLIST_FILE}" "${REQUEST_DIR}" "${TABLE}" "${EXISTING_SYMBOLS}" <<'NODE'
+const fs = require('fs');
+const [watchlistFile, requestDir, tableName, existingJson] = process.argv.slice(2);
+const watchlist = JSON.parse(fs.readFileSync(watchlistFile, 'utf8'));
+const desired = new Set(
+  watchlist.map(e => (typeof e === 'string' ? e : e?.symbol)?.trim().toUpperCase()).filter(Boolean)
+);
+const existing = JSON.parse(existingJson);
+const toDelete = existing.filter(s => !desired.has(s));
+
+for (let index = 0; index < toDelete.length; index += 25) {
+  const chunk = toDelete.slice(index, index + 25).map(s => ({
+    DeleteRequest: { Key: { symbol: { S: s } } },
+  }));
+  fs.writeFileSync(
+    `${requestDir}/delete-${String(index / 25).padStart(3, '0')}.json`,
+    JSON.stringify({ [tableName]: chunk }),
+  );
+}
+
+process.stdout.write(String(toDelete.length));
+NODE
+)"
+
 write_batch() {
   local request_file="$1"
   local attempt=1
@@ -170,6 +212,10 @@ for request_file in "${REQUEST_DIR}"/batch-*.json; do
   write_batch "${request_file}"
 done
 
-echo "Done. Seeded ${COUNT} tickers into ${TABLE}."
+for request_file in "${REQUEST_DIR}"/delete-*.json; do
+  [[ -f "${request_file}" ]] && write_batch "${request_file}"
+done
+
+echo "Done. Seeded ${COUNT} tickers into ${TABLE} (removed ${DELETE_COUNT})."
 echo "Verify with:"
 echo "  aws dynamodb scan --table-name ${TABLE} --region ${REGION} --query 'Items[*].{symbol:symbol.S,strategy:strategyPref.S,active:active.BOOL}' --output table"
